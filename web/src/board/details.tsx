@@ -6,7 +6,8 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { api, LABEL_COLORS, type BoardSettings, type Card, type Label, type LabelColor } from "../api";
+import { api, attachmentUrl, LABEL_COLORS, type BoardSettings, type Card, type Label, type LabelColor } from "../api";
+import { attachmentsKey } from "./Attachments";
 import { Dialog, Icon } from "../ui";
 import { useUndo } from "../undo";
 import { detailKey, type useBoardActions } from "./useBoard";
@@ -375,5 +376,78 @@ function LabelEditor({ label, actions }: { label: Label; actions: Actions }) {
         <Icon.Trash />
       </button>
     </li>
+  );
+}
+
+/**
+ * A card's cover, as a band across its top. Decorative: no text, no alt.
+ * Cards on the board use the light thumbnail; the full view (large) uses the
+ * original so it stays sharp.
+ */
+export function CoverBand({ card, large = false }: { card: Card; large?: boolean }) {
+  if (card.cover.type === "color") return <div className={`card-cover label-${card.cover.value}`} aria-hidden="true" />;
+  if (card.cover.type === "image") {
+    return (
+      <div className="card-cover is-image" aria-hidden="true">
+        <img src={attachmentUrl(card.cover.value, !large)} alt="" loading="lazy" />
+      </div>
+    );
+  }
+  return null;
+}
+
+/** Pick a cover: a palette color, one of the card's images, or none. */
+export function CoverDialog({ card, actions, onClose }: { card: Card; actions: Actions; onClose: () => void }) {
+  const images = useQuery({
+    queryKey: attachmentsKey(card.id),
+    queryFn: () => api.attachments(card.id),
+    select: (l) => l.filter((a) => a.kind === "image"),
+  });
+  const set = (cover: Card["cover"]) => {
+    void actions.updateCard(card, { cover }, `Changed the cover on “${card.title}”`);
+    onClose();
+  };
+  const current = card.cover;
+  return (
+    <Dialog open onClose={onClose} title="Cover">
+      <p className="field-label">Color</p>
+      <div className="swatches" role="radiogroup" aria-label="Cover color">
+        {LABEL_COLORS.map((c) => (
+          <button
+            key={c}
+            type="button"
+            role="radio"
+            aria-checked={current.type === "color" && current.value === c}
+            aria-label={c}
+            className={`swatch label-${c}${current.type === "color" && current.value === c ? " is-selected" : ""}`}
+            onClick={() => set({ type: "color", value: c })}
+          />
+        ))}
+      </div>
+      <p className="field-label">Image</p>
+      {images.data?.length === 0 && <p className="muted">Attach an image to the card to use it as a cover.</p>}
+      <ul className="cover-images">
+        {images.data?.map((a) => (
+          <li key={a.id}>
+            <button
+              type="button"
+              className={`cover-choice${current.type === "image" && current.value === a.id ? " is-selected" : ""}`}
+              aria-pressed={current.type === "image" && current.value === a.id}
+              aria-label={`Use ${a.filename}`}
+              onClick={() => set({ type: "image", value: a.id })}
+            >
+              <img src={attachmentUrl(a.id, true)} alt="" />
+            </button>
+          </li>
+        ))}
+      </ul>
+      {current.type !== "none" && (
+        <div className="dialog-actions">
+          <button type="button" className="text-button" onClick={() => set({ type: "none" })}>
+            Remove cover
+          </button>
+        </div>
+      )}
+    </Dialog>
   );
 }

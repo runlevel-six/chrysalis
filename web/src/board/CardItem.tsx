@@ -14,7 +14,8 @@ import { CSS } from "@dnd-kit/utilities";
 
 import type { BoardSettings, Card, Label } from "../api";
 import { Icon, Menu } from "../ui";
-import { CardMeta, DueText, LabelDots } from "./details";
+import { CardMeta, CoverBand, DueText, LabelDots } from "./details";
+import { Attachments } from "./Attachments";
 import { Checklists } from "./Checklists";
 
 // The editor is heavy; load it only when a description is first shown.
@@ -28,6 +29,8 @@ export type CardActions = {
   moveTo: (card: Card) => void;
   labels: (card: Card) => void;
   dates: (card: Card) => void;
+  cover: (card: Card) => void;
+  setCover: (card: Card, cover: Card["cover"]) => void;
   archive: (card: Card) => void;
   trash: (card: Card) => void;
 };
@@ -100,6 +103,7 @@ export function CardItem({
         actions.openFull(card);
       }}
     >
+      <CoverBand card={card} />
       <div className="card-row">
         <button
           type="button"
@@ -174,6 +178,7 @@ export function CardItem({
                 label="More"
                 icon={<Icon.More />}
                 items={[
+                  { label: "Cover…", onSelect: () => actions.cover(card) },
                   { label: "Move to…", onSelect: () => actions.moveTo(card) },
                   { label: "Archive", onSelect: () => actions.archive(card) },
                   { label: "Delete", onSelect: () => actions.trash(card) },
@@ -188,6 +193,7 @@ export function CardItem({
             </Suspense>
           )}
           <Checklists card={card} readOnly={readOnly} />
+          <Attachments card={card} readOnly={readOnly} onMakeCover={(a) => actions.setCover(card, { type: "image", value: a.id })} />
         </div>
       )}
     </div>

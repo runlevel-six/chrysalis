@@ -88,7 +88,7 @@ export function useBoardActions(boardId: string) {
     if (!d) return;
     const position = keyBetween(lastPosition(d.cards.filter((c) => c.columnId === columnId)), null);
     const temp: Card = {
-      id: `tmp-${crypto.randomUUID()}`, boardId, columnId, title: title.trim(), position, labelIds: [],
+      id: `tmp-${crypto.randomUUID()}`, boardId, columnId, title: title.trim(), position, labelIds: [], cover: { type: "none" },
       startAt: null, dueAt: null, dueHasTime: false, checklistDone: 0, checklistTotal: 0, hasDescription: false, completedAt: null, archivedAt: null,
       version: 0, createdAt: "", updatedAt: "",
     };
@@ -116,6 +116,7 @@ export function useBoardActions(boardId: string) {
       before.dueAt = card.dueAt;
       before.dueHasTime = card.dueHasTime;
     }
+    if (p.cover !== undefined) before.cover = card.cover;
 
     const now = new Date().toISOString();
     const local: Card = {
@@ -129,6 +130,7 @@ export function useBoardActions(boardId: string) {
       ...(p.startAt !== undefined && { startAt: p.startAt }),
       ...(p.dueAt !== undefined && { dueAt: p.dueAt }),
       ...(p.dueHasTime !== undefined && { dueHasTime: p.dueHasTime }),
+      ...(p.cover !== undefined && { cover: p.cover as Card["cover"] }),
     };
     const movedAway =
       (p.columnId !== undefined && !get()?.columns.some((c) => c.id === p.columnId)) || p.archived === true;

@@ -22,7 +22,8 @@ import { arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 
 import { api, ApiError, type BoardDetail, type Card, type Column } from "../api";
 import { Dialog, Icon, Menu } from "../ui";
-import { ArchivedDialog, BoardSettingsDialog, CardMeta, DatesDialog, LabelsDialog } from "./details";
+import { ArchivedDialog, BoardSettingsDialog, CardMeta, CoverBand, CoverDialog, DatesDialog, LabelsDialog } from "./details";
+import { Attachments } from "./Attachments";
 import { Checklists } from "./Checklists";
 import { ColumnView } from "./ColumnView";
 import { LazyDescription, TitleEditor, type CardActions, type CardContext } from "./CardItem";
@@ -66,6 +67,7 @@ export function BoardPage({
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [labelsCardId, setLabelsCardId] = useState<string | null>(null);
   const [datesCardId, setDatesCardId] = useState<string | null>(null);
+  const [coverCardId, setCoverCardId] = useState<string | null>(null);
   const [capturingIn, setCapturingIn] = useState<string | null>(null);
   const lastColumn = useRef<string | null>(null);
 
@@ -123,6 +125,8 @@ export function BoardPage({
     moveTo: (c) => setMoveCardId(c.id),
     labels: (c) => setLabelsCardId(c.id),
     dates: (c) => setDatesCardId(c.id),
+    cover: (c) => setCoverCardId(c.id),
+    setCover: (c, cover) => void actions.updateCard(c, { cover }, `Changed the cover on “${c.title}”`),
     archive: (c) => {
       setFullCardId(null);
       void actions.updateCard(c, { archived: true }, `Archived “${c.title}”`);
@@ -294,6 +298,9 @@ export function BoardPage({
       {datesCardId && cardsById.get(datesCardId) && (
         <DatesDialog card={cardsById.get(datesCardId)!} actions={actions} onClose={() => setDatesCardId(null)} />
       )}
+      {coverCardId && cardsById.get(coverCardId) && (
+        <CoverDialog card={cardsById.get(coverCardId)!} actions={actions} onClose={() => setCoverCardId(null)} />
+      )}
       {archivedOpen && <ArchivedDialog boardId={id} onClose={() => setArchivedOpen(false)} />}
       {settingsOpen && (
         <BoardSettingsDialog
@@ -382,12 +389,14 @@ function CardFull({
   const done = card.completedAt !== null;
   return (
     <Dialog open onClose={onClose} title={card.title} className="card-full">
-      <p className="muted">In {column?.name ?? "a column"}</p>
+      <CoverBand card={card} large />
+      <p className="muted">Column: {column?.name ?? "unknown"}</p>
       <CardMeta card={card} labels={ctx.labels} />
       <Suspense fallback={<p className="muted description-loading">Loading description…</p>}>
         <LazyDescription card={card} readOnly={readOnly} />
       </Suspense>
       <Checklists card={card} readOnly={readOnly} />
+      <Attachments card={card} readOnly={readOnly} onMakeCover={(a) => actions.setCover(card, { type: "image", value: a.id })} />
       {editing ? (
         <TitleEditor
           initial={card.title}
@@ -413,6 +422,9 @@ function CardFull({
           </button>
           <button type="button" className="text-button" onClick={() => actions.dates(card)}>
             <Icon.Calendar /> Dates…
+          </button>
+          <button type="button" className="text-button" onClick={() => actions.cover(card)}>
+            Cover…
           </button>
           <button type="button" className="text-button" onClick={() => actions.moveTo(card)}>
             Move to…

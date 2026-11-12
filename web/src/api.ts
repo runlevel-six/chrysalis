@@ -51,6 +51,7 @@ export type Card = {
   title: string;
   position: string;
   labelIds: string[];
+  cover: Cover;
   startAt: string | null; // "YYYY-MM-DD"
   dueAt: string | null; // "YYYY-MM-DD", or a UTC timestamp when dueHasTime
   dueHasTime: boolean;
@@ -83,6 +84,27 @@ export type Trash = { columns: Column[]; cards: Card[] };
 export type ColumnPatch = Partial<Pick<Column, "name" | "color" | "colorMode" | "isDone" | "position">> & {
   softLimit?: number; // 0 clears
 };
+/** A card cover: a palette color, or one of the card's image attachments. */
+export type Cover = { type: "none" } | { type: "color"; value: LabelColor } | { type: "image"; value: string };
+
+export type Attachment = {
+  id: string;
+  cardId?: string;
+  kind: "file" | "image" | "link";
+  filename: string;
+  mime?: string;
+  sizeBytes?: number;
+  url?: string;
+  width?: number;
+  height?: number;
+  hasThumb: boolean;
+  createdAt: string;
+};
+
+/** Where an attachment (or its thumbnail) is served. Same origin, so the session cookie applies. */
+export const attachmentUrl = (id: string, thumb = false) =>
+  `/api/v1/attachments/${encodeURIComponent(id)}${thumb ? "?thumb=1" : ""}`;
+
 export type CardPatch = {
   title?: string;
   columnId?: string;
@@ -93,6 +115,7 @@ export type CardPatch = {
   startAt?: string | null; // null clears
   dueAt?: string | null; // null clears
   dueHasTime?: boolean;
+  cover?: Cover | { type: "color" | "image"; value: string };
 };
 
 export class ApiError extends Error {
@@ -165,6 +188,25 @@ export const api = {
   description: (cardId: string) => request<Description>("GET", `/cards/${encodeURIComponent(cardId)}/description`),
   setDescription: (cardId: string, doc: unknown, baseVersion: number) =>
     request<Description>("PUT", `/cards/${encodeURIComponent(cardId)}/description`, { doc, baseVersion }),
+
+  attachments: (cardId: string) =>
+    request<{ attachments: Attachment[] }>("GET", `/cards/${encodeURIComponent(cardId)}/attachments`).then((r) => r.attachments),
+  uploadAttachment: async (cardId: string, file: File): Promise<Attachment> => {
+    const form = new FormData();
+    form.append("file", file, file.name);
+    const res = await fetch(`/api/v1/cards/${encodeURIComponent(cardId)}/attachments`, {
+      method: "POST",
+      credentials: "same-origin",
+      body: form,
+    });
+    const body = await res.json().catch(() => undefined);
+    if (!res.ok) throw new ApiError(res.status, (body as { error?: string })?.error ?? res.statusText, body);
+    return body as Attachment;
+  },
+  addLink: (cardId: string, url: string, title: string) =>
+    request<Attachment>("POST", `/cards/${encodeURIComponent(cardId)}/links`, { url, title }),
+  trashAttachment: (id: string) => request<Attachment>("DELETE", `/attachments/${encodeURIComponent(id)}`),
+  restoreAttachment: (id: string) => request<Attachment>("POST", `/attachments/${encodeURIComponent(id)}/restore`),
 
   checklists: (cardId: string) =>
     request<{ checklists: Checklist[] }>("GET", `/cards/${encodeURIComponent(cardId)}/checklists`).then((r) => r.checklists),

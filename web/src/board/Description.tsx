@@ -18,13 +18,49 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { EditorContent, useEditor, type Editor, type JSONContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { Placeholder } from "@tiptap/extensions";
+import Image from "@tiptap/extension-image";
 
-import { api, ApiError, type BoardDetail, type Card, type Description as Desc } from "../api";
+import { api, ApiError, attachmentUrl, type Attachment, type BoardDetail, type Card, type Description as Desc } from "../api";
+import { attachmentsKey } from "./Attachments";
 import { drafts } from "../drafts";
 import { Icon } from "../ui";
 import { detailKey } from "./useBoard";
 
 const descKey = (cardId: string) => ["card", cardId, "description"] as const;
+
+// Images in descriptions are this app's own attachments, stored in the doc
+// as "attachment:<id>" (docs/DESIGN.md §7.3) and turned into the
+// authenticated URL only when displayed. Nothing else is accepted: a pasted
+// image from another site, or a doc pointing at an outside URL, renders with
+// no source, so a description can never load a tracking pixel or contact a
+// third party.
+const ATTACHMENT_SRC = /^attachment:([0-9A-Z]{26})$/;
+const SERVED_SRC = /^\/api\/v1\/attachments\/([0-9A-Z]{26})(?:\?.*)?$/;
+
+const toStored = (src: string): string | null => {
+  const served = src.match(SERVED_SRC);
+  if (served) return `attachment:${served[1]}`;
+  return ATTACHMENT_SRC.test(src) ? src : null;
+};
+
+const AttachmentImage = Image.extend({
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      src: {
+        default: null,
+        parseHTML: (el: HTMLElement) => toStored(el.getAttribute("src") ?? ""),
+        renderHTML: (attrs: { src?: string | null }) => {
+          const m = String(attrs.src ?? "").match(ATTACHMENT_SRC);
+          return m ? { src: attachmentUrl(m[1]) } : {};
+        },
+      },
+    };
+  },
+  parseHTML() {
+    return [{ tag: "img[src]", getAttrs: (el: HTMLElement) => (toStored(el.getAttribute("src") ?? "") ? null : false) }];
+  },
+}).configure({ allowBase64: false });
 
 const extensions = [
   StarterKit.configure({
@@ -39,7 +75,11 @@ const extensions = [
     },
   }),
   Placeholder.configure({ placeholder: "Add a description…" }),
+  AttachmentImage,
 ];
+
+const imageFiles = (list: FileList | null | undefined) =>
+  [...(list ?? [])].filter((f) => f.type.startsWith("image/"));
 
 type Status = "idle" | "saving" | "saved" | "unsent" | "conflict";
 
@@ -67,12 +107,50 @@ export default function Description({ card, readOnly, compact = false }: { card:
   const draftTimer = useRef<number | undefined>(undefined);
   const initialized = useRef(false);
 
+  // Upload pasted or dropped images as attachments, then put them in the
+  // text at pos (or the cursor).
+  const insertImages = async (files: File[], pos?: number) => {
+    for (const f of files) {
+      try {
+        const a = await api.uploadAttachment(card.id, f);
+        qc.setQueryData<Attachment[]>(attachmentsKey(card.id), (l) => [...(l ?? []), a]);
+        if (a.kind !== "image" || !editorRef.current) continue;
+        const chain = editorRef.current.chain().focus();
+        (pos !== undefined ? chain.insertContentAt(pos, imageNode(a)) : chain.insertContent(imageNode(a))).run();
+      } catch (err) {
+        setUploadError(err instanceof ApiError ? err.message : `“${f.name}” didn't upload. Check your connection and try again.`);
+      }
+    }
+  };
+  const editorRef = useRef<Editor | null>(null);
+  const [uploadError, setUploadError] = useState("");
+
   const editor = useEditor({
     extensions,
     editable: !readOnly,
     injectCSS: false, // the CSP blocks injected <style>; styles live in styles.css
     immediatelyRender: true,
-    editorProps: { attributes: { "aria-label": `Description for ${card.title}`, class: "description-editor" } },
+    editorProps: {
+      attributes: { "aria-label": `Description for ${card.title}`, class: "description-editor" },
+      handlePaste: (_view, event) => {
+        const files = imageFiles(event.clipboardData?.files);
+        if (readOnly || !files.length) return false;
+        event.preventDefault();
+        void insertImages(files);
+        return true;
+      },
+      handleDrop: (view, event) => {
+        const files = imageFiles(event.dataTransfer?.files);
+        if (readOnly || !files.length) return false;
+        event.preventDefault();
+        const at = view.posAtCoords({ left: event.clientX, top: event.clientY });
+        void insertImages(files, at?.pos);
+        return true;
+      },
+    },
+    onCreate: ({ editor: ed }) => {
+      editorRef.current = ed;
+    },
     onFocus: () => setActivated(true),
     onUpdate: () => {
       if (suppress.current) return;
@@ -223,9 +301,14 @@ export default function Description({ card, readOnly, compact = false }: { card:
 
   return (
     <div className={`description${compact ? " is-compact" : ""}`}>
-      {!readOnly && !compact && <Toolbar editor={editor} />}
+      {!readOnly && !compact && <Toolbar editor={editor} onImages={(f) => void insertImages(f)} />}
       <EditorContent editor={editor} />
-      {!readOnly && compact && activated && <Toolbar editor={editor} />}
+      {!readOnly && compact && activated && <Toolbar editor={editor} onImages={(f) => void insertImages(f)} />}
+      {uploadError && (
+        <p className="note" role="alert">
+          {uploadError}
+        </p>
+      )}
       {status === "conflict" && theirs && (
         <div className="conflict" role="alert">
           <p>This card was edited on another device.</p>
@@ -270,8 +353,9 @@ function ReadOnlyDoc({ doc, label }: { doc: unknown; label: string }) {
   );
 }
 
-function Toolbar({ editor }: { editor: Editor }) {
+function Toolbar({ editor, onImages }: { editor: Editor; onImages: (files: File[]) => void }) {
   const [linking, setLinking] = useState(false);
+  const imageInput = useRef<HTMLInputElement>(null);
   const [href, setHref] = useState("");
   const [, rerender] = useState(0);
 
@@ -318,6 +402,18 @@ function Toolbar({ editor }: { editor: Editor }) {
         setHref(editor.getAttributes("link").href ?? "");
         setLinking((v) => !v);
       }, <Icon.Link />)}
+      {btn("Insert image", false, () => imageInput.current?.click(), <Icon.Image />)}
+      <input
+        ref={imageInput}
+        type="file"
+        accept="image/*"
+        multiple
+        hidden
+        onChange={(e) => {
+          onImages(imageFiles(e.target.files));
+          e.target.value = "";
+        }}
+      />
       {linking && (
         <form className="link-form" onSubmit={applyLink}>
           <input
@@ -333,4 +429,8 @@ function Toolbar({ editor }: { editor: Editor }) {
       )}
     </div>
   );
+}
+
+function imageNode(a: Attachment) {
+  return { type: "image", attrs: { src: `attachment:${a.id}`, alt: a.filename } };
 }

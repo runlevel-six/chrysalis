@@ -40,6 +40,7 @@ export default defineConfig({
       CHRYSALIS_AUTH_MODE: "dev",
       CHRYSALIS_DEV_MODE: "true",
       CHRYSALIS_LOG_LEVEL: "warn",
+      CHRYSALIS_MAX_UPLOAD_MB: "2", // keeps the over-the-limit test small
     },
   },
 });
