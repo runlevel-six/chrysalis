@@ -19,6 +19,7 @@ import (
 	"github.com/runlevel-six/chrysalis/internal/auth"
 	"github.com/runlevel-six/chrysalis/internal/config"
 	"github.com/runlevel-six/chrysalis/internal/store"
+	"github.com/runlevel-six/chrysalis/web"
 )
 
 func main() {
@@ -57,7 +58,7 @@ func run() error {
 
 	srv := &http.Server{
 		Addr:              cfg.ListenAddr,
-		Handler:           api.NewHandler(cfg, st, authn, log),
+		Handler:           api.NewHandler(cfg, st, authn, web.Dist(), log),
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 	errc := make(chan error, 1)

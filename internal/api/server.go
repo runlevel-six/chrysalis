@@ -9,7 +9,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"html"
+	"io/fs"
 	"log/slog"
 	"net/http"
 	"runtime/debug"
@@ -18,13 +18,15 @@ import (
 
 	"github.com/runlevel-six/chrysalis/internal/auth"
 	"github.com/runlevel-six/chrysalis/internal/config"
+	"github.com/runlevel-six/chrysalis/internal/service"
 	"github.com/runlevel-six/chrysalis/internal/store"
 )
 
 type server struct {
-	cfg   *config.Config
-	store *store.Store
-	log   *slog.Logger
+	cfg    *config.Config
+	store  *store.Store
+	boards *service.Boards
+	log    *slog.Logger
 }
 
 // NewHandler returns the app's root handler.
@@ -33,19 +35,25 @@ type server struct {
 // mode's own routes; everything else falls through "/" into the auth
 // middleware and then the protected mux. A new handler added to protected is
 // therefore authenticated by default.
-func NewHandler(cfg *config.Config, st *store.Store, authn auth.Authenticator, log *slog.Logger) http.Handler {
-	s := &server{cfg: cfg, store: st, log: log}
+//
+// static is the built web app (index.html and assets/).
+func NewHandler(cfg *config.Config, st *store.Store, authn auth.Authenticator, static fs.FS, log *slog.Logger) http.Handler {
+	s := &server{cfg: cfg, store: st, boards: service.NewBoards(st, time.Now), log: log}
 
 	protected := http.NewServeMux()
 	protected.HandleFunc("GET /api/v1/me", s.me)
+	protected.HandleFunc("GET /api/v1/boards", s.listBoards)
+	protected.HandleFunc("POST /api/v1/boards", s.createBoard)
+	protected.HandleFunc("GET /api/v1/boards/{id}", s.getBoard)
 	protected.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
 		auth.WriteError(w, http.StatusNotFound, "not found")
 	})
-	protected.HandleFunc("GET /{$}", s.home)
+	protected.Handle("/", spaHandler(static))
 
 	public := http.NewServeMux()
 	public.HandleFunc("GET /healthz", s.healthz)
 	public.HandleFunc("GET /readyz", s.readyz)
+	public.Handle("GET /assets/", assetsHandler(static))
 	authn.Register(public)
 	public.Handle("/", authn.Middleware(protected))
 
@@ -82,14 +90,6 @@ func (s *server) readyz(w http.ResponseWriter, r *http.Request) {
 func (s *server) me(w http.ResponseWriter, r *http.Request) {
 	u, _ := auth.UserFrom(r.Context())
 	writeJSON(w, http.StatusOK, u)
-}
-
-// home is a placeholder until the SPA is embedded.
-func (s *server) home(w http.ResponseWriter, r *http.Request) {
-	u, _ := auth.UserFrom(r.Context())
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	fmt.Fprintf(w, `<!doctype html><meta charset="utf-8"><title>Chrysalis</title><p>Chrysalis is running. Signed in as %s.</p>`,
-		html.EscapeString(u.DisplayName))
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {

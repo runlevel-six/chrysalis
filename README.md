@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/images/chrysalis-banner.png" alt="Chrysalis: calm self-hosted kanban" width="627">
+</p>
+
 # Chrysalis
 
 A calm, self-hosted kanban board designed to reduce visual and cognitive load.

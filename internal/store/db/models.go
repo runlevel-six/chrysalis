@@ -4,6 +4,32 @@
 
 package db
 
+import (
+	"database/sql"
+)
+
+type Board struct {
+	ID              string
+	OwnerID         string
+	Name            string
+	Icon            string
+	BackgroundType  string
+	BackgroundValue string
+	SettingsJson    string
+	Position        string
+	ArchivedAt      sql.NullString
+	CreatedAt       string
+	UpdatedAt       string
+	DeletedAt       sql.NullString
+	Version         int64
+}
+
+type BoardMember struct {
+	BoardID string
+	UserID  string
+	Role    string
+}
+
 type Session struct {
 	ID        string
 	UserID    string

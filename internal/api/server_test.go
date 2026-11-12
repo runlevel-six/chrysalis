@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"testing/fstest"
 	"time"
 
 	"github.com/runlevel-six/chrysalis/internal/auth"
@@ -39,7 +40,14 @@ func newTestServer(t *testing.T) (http.Handler, *store.Store) {
 	t.Cleanup(func() { st.Close() })
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
 	authn := auth.NewDevAuth(auth.NewUsers(st.Queries, time.Now), log)
-	return NewHandler(cfg, st, authn, log), st
+	return NewHandler(cfg, st, authn, testStatic, log), st
+}
+
+var testStatic = fstest.MapFS{
+	"index.html":          {Data: []byte("<!doctype html><title>app</title>")},
+	"assets/index-abc.js": {Data: []byte("console.log(1)")},
+	"favicon.svg":         {Data: []byte("<svg/>")},
+	"assets/sub/.keep":    {Data: nil},
 }
 
 func get(h http.Handler, path string) *httptest.ResponseRecorder {
