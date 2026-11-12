@@ -116,7 +116,7 @@ The core need is **reducing visual and cognitive load**. The user should see onl
 
 ### Non-goals
 
-- **Being a system of record for sensitive records:** student education records, patient or client data. The README says so plainly, so professionals adopting it understand the boundary.
+- **Being a system of record for regulated or sensitive data.** The README notes that securing such data is the deployer's responsibility.
 - Real-time collaborative text editing (Google Docs-style).
 - Enterprise multi-tenancy (separate orgs, billing, tenant isolation).
 - Workflow automation (deferred).
