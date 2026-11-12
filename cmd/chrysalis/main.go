@@ -18,6 +18,7 @@ import (
 	"github.com/runlevel-six/chrysalis/internal/api"
 	"github.com/runlevel-six/chrysalis/internal/auth"
 	"github.com/runlevel-six/chrysalis/internal/config"
+	"github.com/runlevel-six/chrysalis/internal/service"
 	"github.com/runlevel-six/chrysalis/internal/store"
 	"github.com/runlevel-six/chrysalis/web"
 )
@@ -58,6 +59,7 @@ func run() error {
 
 	authn := newAuthenticator(cfg, st, log)
 	go purgeExpiredSessions(ctx, st, log)
+	go purgeTrash(ctx, st, cfg.TrashRetention, log)
 
 	srv := &http.Server{
 		Addr:              cfg.ListenAddr,
@@ -113,6 +115,26 @@ func purgeExpiredSessions(ctx context.Context, st *store.Store, log *slog.Logger
 			log.Error("purge expired sessions", "err", err)
 		} else if n > 0 {
 			log.Info("purged expired sessions", "count", n)
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+		}
+	}
+}
+
+// purgeTrash permanently deletes items that have been in the trash longer
+// than the retention period, hourly.
+func purgeTrash(ctx context.Context, st *store.Store, retention time.Duration, log *slog.Logger) {
+	t := time.NewTicker(time.Hour)
+	defer t.Stop()
+	for {
+		n, err := service.PurgeTrash(ctx, st, time.Now().Add(-retention))
+		if err != nil && ctx.Err() == nil {
+			log.Error("purge trash", "err", err)
+		} else if n > 0 {
+			log.Info("purged trash", "count", n)
 		}
 		select {
 		case <-ctx.Done():

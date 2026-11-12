@@ -46,6 +46,7 @@ func NewHandler(cfg *config.Config, st *store.Store, authn auth.Authenticator, s
 	protected.HandleFunc("GET /api/v1/boards", s.listBoards)
 	protected.HandleFunc("POST /api/v1/boards", s.createBoard)
 	protected.HandleFunc("GET /api/v1/boards/{id}", s.getBoard)
+	s.registerContent(protected)
 	protected.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
 		auth.WriteError(w, http.StatusNotFound, "not found")
 	})

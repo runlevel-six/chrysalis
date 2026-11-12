@@ -30,6 +30,9 @@ type Config struct {
 	AuthMode   AuthMode
 	SessionTTL time.Duration
 	LogLevel   string
+	// TrashRetention is how long trashed items can be restored before they're
+	// permanently deleted.
+	TrashRetention time.Duration
 
 	OIDC           OIDC
 	Header         Header
@@ -103,6 +106,12 @@ func Load(getenv func(string) string) (*Config, error) {
 		errs = append(errs, errors.New("CHRYSALIS_SESSION_TTL must be a positive duration like 720h"))
 	}
 	c.SessionTTL = ttl
+
+	days, err := strconv.Atoi(env("TRASH_RETENTION_DAYS", "30"))
+	if err != nil || days < 1 {
+		errs = append(errs, errors.New("CHRYSALIS_TRASH_RETENTION_DAYS must be a whole number of days, at least 1"))
+	}
+	c.TrashRetention = time.Duration(days) * 24 * time.Hour
 
 	for _, s := range splitList(env("TRUSTED_PROXY_CIDRS", "")) {
 		p, err := netip.ParsePrefix(s)

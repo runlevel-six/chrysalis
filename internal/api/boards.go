@@ -70,6 +70,8 @@ func (s *server) serviceError(w http.ResponseWriter, r *http.Request, err error)
 		auth.WriteError(w, http.StatusBadRequest, verr.Msg)
 	case errors.Is(err, service.ErrNotFound):
 		auth.WriteError(w, http.StatusNotFound, "not found")
+	case errors.Is(err, service.ErrForbidden):
+		auth.WriteError(w, http.StatusForbidden, "you can view this board but not change it")
 	default:
 		s.log.Error("request failed", "method", r.Method, "path", r.URL.Path, "err", err)
 		auth.WriteError(w, http.StatusInternalServerError, "internal error")

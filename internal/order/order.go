@@ -173,6 +173,15 @@ func integerPart(key string) string {
 	return key[:n]
 }
 
+// Valid reports whether key is a well-formed order key, such as one a client
+// generated with the JavaScript package.
+func Valid(key string) error {
+	if key == "" {
+		return ErrInvalidKey
+	}
+	return validate(key)
+}
+
 func validate(key string) error {
 	if key == smallestInteger {
 		return ErrInvalidKey

@@ -28,7 +28,7 @@ func TestLoadDefaults(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if c.AuthMode != AuthOIDC || c.ListenAddr != ":8080" || c.DataDir != "/data" || c.SessionTTL != 720*time.Hour {
+	if c.AuthMode != AuthOIDC || c.ListenAddr != ":8080" || c.DataDir != "/data" || c.SessionTTL != 720*time.Hour || c.TrashRetention != 30*24*time.Hour {
 		t.Errorf("unexpected defaults: %+v", c)
 	}
 	if got := c.BaseURL.String(); got != "https://board.example.home" {
@@ -58,6 +58,7 @@ func TestLoadErrors(t *testing.T) {
 		{"bad cidr", map[string]string{"CHRYSALIS_BASE_URL": "https://board.example.home", "CHRYSALIS_AUTH_MODE": "header", "CHRYSALIS_TRUSTED_PROXY_CIDRS": "10.0.0.0/8,nope"}, `invalid entry "nope"`},
 		{"dev without dev mode", map[string]string{"CHRYSALIS_BASE_URL": "http://localhost:8080", "CHRYSALIS_AUTH_MODE": "dev"}, "CHRYSALIS_DEV_MODE=true"},
 		{"unknown mode", map[string]string{"CHRYSALIS_BASE_URL": "http://localhost:8080", "CHRYSALIS_AUTH_MODE": "magic"}, "must be oidc, header or dev"},
+		{"bad trash retention", map[string]string{"CHRYSALIS_BASE_URL": "http://localhost:8080", "CHRYSALIS_AUTH_MODE": "dev", "CHRYSALIS_DEV_MODE": "true", "CHRYSALIS_TRASH_RETENTION_DAYS": "0"}, "TRASH_RETENTION_DAYS"},
 		{"bad ttl", map[string]string{"CHRYSALIS_BASE_URL": "http://localhost:8080", "CHRYSALIS_AUTH_MODE": "dev", "CHRYSALIS_DEV_MODE": "true", "CHRYSALIS_SESSION_TTL": "forever"}, "SESSION_TTL"},
 	}
 	for _, tt := range tests {

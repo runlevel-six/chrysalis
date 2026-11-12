@@ -30,6 +30,35 @@ type BoardMember struct {
 	Role    string
 }
 
+type Card struct {
+	ID          string
+	BoardID     string
+	ColumnID    string
+	Title       string
+	Position    string
+	CompletedAt sql.NullString
+	ArchivedAt  sql.NullString
+	CreatedAt   string
+	UpdatedAt   string
+	DeletedAt   sql.NullString
+	Version     int64
+}
+
+type Column struct {
+	ID           string
+	BoardID      string
+	Name         string
+	Color        string
+	ColorMode    string
+	SoftLimit    sql.NullInt64
+	IsDoneColumn int64
+	Position     string
+	CreatedAt    string
+	UpdatedAt    string
+	DeletedAt    sql.NullString
+	Version      int64
+}
+
 type Session struct {
 	ID        string
 	UserID    string
@@ -45,4 +74,18 @@ type User struct {
 	DisplayName string
 	CreatedAt   string
 	LastSeenAt  string
+}
+
+type UserCardView struct {
+	UserID    string
+	CardID    string
+	Expanded  int64
+	UpdatedAt string
+}
+
+type UserColumnView struct {
+	UserID    string
+	ColumnID  string
+	Collapsed int64
+	UpdatedAt string
 }
