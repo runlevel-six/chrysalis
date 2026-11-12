@@ -95,7 +95,7 @@ local/
 
 ## 1. Problem and goals
 
-Kanban-style task boards, Trello and its open-source alternatives, show everything at once. For people who are easily overwhelmed by busy interfaces, a full board is the forest that hides the trees they need to focus on. That's common with ADHD and anxiety. Paid tiers of commercial tools come closer through collapsing and customization, but they still fall short, and they cost money every month.
+Kanban-style task boards, commercial and open source alike, show everything at once. For people who are easily overwhelmed by busy interfaces, a full board is the forest that hides the trees they need to focus on. That's common with ADHD and anxiety. Paid tiers of commercial tools come closer through collapsing and customization, but they still fall short, and they cost money every month.
 
 The core need is **reducing visual and cognitive load**. The user should see only what they chose to see, while keeping the familiar board model.
 
@@ -117,7 +117,7 @@ The core need is **reducing visual and cognitive load**. The user should see onl
 ### Non-goals
 
 - **Being a system of record for regulated or sensitive data.** The README notes that securing such data is the deployer's responsibility.
-- Real-time collaborative text editing (Google Docs-style).
+- Real-time collaborative text editing (several people typing in the same text at once).
 - Enterprise multi-tenancy (separate orgs, billing, tenant isolation).
 - Workflow automation (deferred).
 
@@ -147,7 +147,7 @@ This section matters most. When in doubt, optimize for **calm, predictable and f
   - a background (color, gradient or uploaded image);
   - optional emoji or icon;
   - columns.
-- **Column** (a "list" in Trello):
+- **Column** (often called a "list"):
   - fully custom names, colors and order;
   - optional WIP-style soft limit (display only, never blocking);
   - can be collapsed.
@@ -174,7 +174,7 @@ Each card, **per user**, is in one of three states.
    - The card grows in place inside its column. The rest of the column pushes down.
    - It shows the description, checklists, labels, dates and attachments.
    - All fields are editable inline.
-   - **Cards expand and collapse independently.** Any number can be open at once. This is explicitly unlike Trello's single modal and is a core requirement.
+   - **Cards expand and collapse independently.** Any number can be open at once. This is explicitly unlike tools that open one card at a time in a modal, and is a core requirement.
 3. **Full view.**
    - The card opens as a large overlay filling most of the viewport. Use this for long descriptions, many images or deep checklists.
    - Closing it returns to whatever inline state the card had before.
@@ -275,7 +275,7 @@ Treat this as a first-class feature, not polish.
   - a custom time.
 - **Delivery:**
   - in-app notification list (always);
-  - **Web Push** (requires PWA install on iOS/iPadOS; supported for home-screen web apps since iOS 16.4; verify);
+  - **Web Push** (some mobile platforms only allow it for web apps installed to the home screen; verify current support);
   - optional email via SMTP if configured.
 - **Snooze:** 1 hour, tonight, tomorrow, or pick a time.
 - **Quiet hours:** configurable; no pushes during them.
@@ -376,7 +376,7 @@ A single, quiet line at the top of the board that helps the user get centered. I
 - No entries are enabled by default. Optional seed packs are opt-in from settings:
   - **Scripture (public-domain translations only):** KJV is public domain in the US. The World English Bible (WEB) is public domain. The Berean Standard Bible was dedicated to the public domain in 2023. Verify each translation's current status before shipping a pack.
   - **Quotes:** only clearly public-domain quotes or ones the maintainers wrote. Verify every attribution; misattributed quotes are common.
-- Modern translations such as ESV, NIV and NASB are copyrighted. **Don't ship them.** Users can type in any entry for their own use.
+- Most modern translations are copyrighted. **Don't ship them.** Users can type in any entry for their own use.
 - Seed packs live as YAML in `seeds/quotes/` with a `SOURCES.md` noting each pack's license.
 
 ---
@@ -393,7 +393,7 @@ A single, quiet line at the top of the board that helps the user get centered. I
 
 **Exit:** the maintainer can log in through their SSO on the real ingress, create a board, reload it, and see it persist.
 
-### Phase 1 — MVP: replace a Trello board for daily use
+### Phase 1 — MVP: replace the current board tool for daily use
 
 - Boards: create, rename, reorder, background, archive, delete to trash.
 - Columns: custom name, color, order, collapse, delete to trash.
@@ -496,7 +496,7 @@ Recommended building blocks (verify current status and licenses):
 |---|---|---|
 | Build | Vite | |
 | Server state | TanStack Query | Optimistic updates with rollback. |
-| Drag-and-drop | `@atlaskit/pragmatic-drag-and-drop` (preferred) or `dnd-kit` | Pragmatic DnD is Atlassian's, built for Trello/Jira-style boards. Must support touch, keyboard and auto-scroll. Prototype both briefly if unsure. |
+| Drag-and-drop | `@atlaskit/pragmatic-drag-and-drop` (preferred) or `dnd-kit` | Pragmatic DnD was built for kanban-style boards. Must support touch, keyboard and auto-scroll. Prototype both briefly if unsure. |
 | Rich text | TipTap (ProseMirror) | Store as ProseMirror JSON. Inline images upload as attachments. |
 | UI primitives | Radix UI (or similar headless, accessible library) | Menus, dialogs, popovers. |
 | Styling | Tailwind CSS + CSS custom properties for theming | |
@@ -541,7 +541,7 @@ Recommended building blocks (verify current status and licenses):
 
 1. **`oidc`** (default).
    - The app is an OIDC relying party using the authorization-code flow with PKCE.
-   - It works with Authelia, Authentik, Keycloak, Pocket ID, Google and others.
+   - It works with Authelia, Authentik, Keycloak, Pocket ID and other OIDC providers.
    - Settings: `CHRYSALIS_OIDC_ISSUER`, `CHRYSALIS_OIDC_CLIENT_ID`, `CHRYSALIS_OIDC_CLIENT_SECRET`, `CHRYSALIS_OIDC_REDIRECT_URL`, `CHRYSALIS_OIDC_SCOPES` (default `openid profile email`).
    - Optional `CHRYSALIS_OIDC_ALLOWED_GROUPS` gates access by a groups claim.
 2. **`header`** (trusted forward-auth).
@@ -733,7 +733,7 @@ schema_migrations(...)
   - Backup and restore round-trip test.
 - **Frontend:**
   - Vitest for logic: ordering keys, undo stack, view-state reconciliation.
-  - **Playwright end-to-end** on desktop Chromium/WebKit plus emulated iPhone and iPad viewports with touch. Required flows:
+  - **Playwright end-to-end** on desktop Chromium/WebKit plus emulated phone and tablet viewports with touch. Required flows:
     - create a board, columns and cards;
     - expand three cards independently, reload, and confirm all three are still expanded;
     - the same in a second browser context as the same user, confirming state syncs;
@@ -762,7 +762,7 @@ schema_migrations(...)
   2. Go stage embeds it and builds a static binary;
   3. final image is distroless static (or scratch with CA certificates).
 - Runs as non-root with a read-only root filesystem. `/data` is the only writable path; branding is mounted read-only.
-- Multi-arch `linux/amd64` + `linux/arm64`, so self-hosters on a Raspberry Pi are covered.
+- Multi-arch `linux/amd64` + `linux/arm64`, so self-hosters on small ARM single-board computers are covered.
 - Endpoints:
   - `GET /healthz` (liveness);
   - `GET /readyz` (DB reachable, migrations applied);
