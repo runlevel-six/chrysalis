@@ -840,7 +840,7 @@ local/deploy/k8s/  # GITIGNORED: the maintainer's real overlay, based on ../../.
 .gitignore               # first commit (§0.1)
 LICENSE                  # Apache-2.0
 NOTICE
-README.md                # incl. "not a system of record for sensitive data"
+README.md                # incl. note that securing sensitive data is the deployer's responsibility
 CLAUDE.md                # generic agent instructions; points to local/CONTEXT.md if present
 cmd/chrysalis/           # main
 internal/
