@@ -22,6 +22,74 @@ func (s *server) registerContent(mux *http.ServeMux) {
 	mux.HandleFunc("PATCH /api/v1/cards/{id}", s.updateCard)
 	mux.HandleFunc("DELETE /api/v1/cards/{id}", s.trashCard(true))
 	mux.HandleFunc("POST /api/v1/cards/{id}/restore", s.trashCard(false))
+	mux.HandleFunc("PATCH /api/v1/boards/{id}", s.updateBoard)
+	mux.HandleFunc("GET /api/v1/boards/{id}/archived", s.archivedCards)
+	mux.HandleFunc("POST /api/v1/boards/{id}/labels", s.createLabel)
+	mux.HandleFunc("PATCH /api/v1/labels/{id}", s.updateLabel)
+	mux.HandleFunc("DELETE /api/v1/labels/{id}", s.trashLabel(true))
+	mux.HandleFunc("POST /api/v1/labels/{id}/restore", s.trashLabel(false))
+}
+
+func (s *server) updateBoard(w http.ResponseWriter, r *http.Request) {
+	var p service.BoardPatch
+	if !decodeJSON(w, r, &p) {
+		return
+	}
+	b, err := s.boards.UpdateBoard(r.Context(), userID(r), r.PathValue("id"), p)
+	if err != nil {
+		s.serviceError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, b)
+}
+
+func (s *server) archivedCards(w http.ResponseWriter, r *http.Request) {
+	cards, err := s.boards.Archived(r.Context(), userID(r), r.PathValue("id"))
+	if err != nil {
+		s.serviceError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"cards": cards})
+}
+
+func (s *server) createLabel(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Name  string `json:"name"`
+		Color string `json:"color"`
+	}
+	if !decodeJSON(w, r, &req) {
+		return
+	}
+	l, err := s.boards.CreateLabel(r.Context(), userID(r), r.PathValue("id"), req.Name, req.Color)
+	if err != nil {
+		s.serviceError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusCreated, l)
+}
+
+func (s *server) updateLabel(w http.ResponseWriter, r *http.Request) {
+	var p service.LabelPatch
+	if !decodeJSON(w, r, &p) {
+		return
+	}
+	l, err := s.boards.UpdateLabel(r.Context(), userID(r), r.PathValue("id"), p)
+	if err != nil {
+		s.serviceError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, l)
+}
+
+func (s *server) trashLabel(trashed bool) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		l, err := s.boards.SetLabelTrashed(r.Context(), userID(r), r.PathValue("id"), trashed)
+		if err != nil {
+			s.serviceError(w, r, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, l)
+	}
 }
 
 func userID(r *http.Request) string {

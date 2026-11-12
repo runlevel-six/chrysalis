@@ -44,15 +44,16 @@ const (
 
 // Board is a board as the current user sees it.
 type Board struct {
-	ID         string     `json:"id"`
-	Name       string     `json:"name"`
-	Icon       string     `json:"icon"`
-	Background Background `json:"background"`
-	Position   string     `json:"position"`
-	Role       Role       `json:"role"`
-	Version    int64      `json:"version"`
-	CreatedAt  string     `json:"createdAt"`
-	UpdatedAt  string     `json:"updatedAt"`
+	ID         string        `json:"id"`
+	Name       string        `json:"name"`
+	Icon       string        `json:"icon"`
+	Background Background    `json:"background"`
+	Settings   BoardSettings `json:"settings"`
+	Position   string        `json:"position"`
+	Role       Role          `json:"role"`
+	Version    int64         `json:"version"`
+	CreatedAt  string        `json:"createdAt"`
+	UpdatedAt  string        `json:"updatedAt"`
 }
 
 type Background struct {
@@ -64,6 +65,7 @@ func boardFromRow(b db.Board, role string) Board {
 	return Board{
 		ID: b.ID, Name: b.Name, Icon: b.Icon,
 		Background: Background{Type: b.BackgroundType, Value: b.BackgroundValue},
+		Settings:   parseSettings(b.SettingsJson),
 		Position:   b.Position, Role: Role(role), Version: b.Version,
 		CreatedAt: b.CreatedAt, UpdatedAt: b.UpdatedAt,
 	}

@@ -42,6 +42,14 @@ type Card struct {
 	UpdatedAt   string
 	DeletedAt   sql.NullString
 	Version     int64
+	StartAt     sql.NullString
+	DueAt       sql.NullString
+	DueHasTime  int64
+}
+
+type CardLabel struct {
+	CardID  string
+	LabelID string
 }
 
 type Column struct {
@@ -57,6 +65,18 @@ type Column struct {
 	UpdatedAt    string
 	DeletedAt    sql.NullString
 	Version      int64
+}
+
+type Label struct {
+	ID        string
+	BoardID   string
+	Name      string
+	Color     string
+	Position  string
+	CreatedAt string
+	UpdatedAt string
+	DeletedAt sql.NullString
+	Version   int64
 }
 
 type Session struct {

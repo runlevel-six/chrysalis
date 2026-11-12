@@ -44,16 +44,21 @@ type Column struct {
 }
 
 type Card struct {
-	ID          string  `json:"id"`
-	BoardID     string  `json:"boardId"`
-	ColumnID    string  `json:"columnId"`
-	Title       string  `json:"title"`
-	Position    string  `json:"position"`
-	CompletedAt *string `json:"completedAt"`
-	DeletedAt   *string `json:"deletedAt,omitempty"`
-	Version     int64   `json:"version"`
-	CreatedAt   string  `json:"createdAt"`
-	UpdatedAt   string  `json:"updatedAt"`
+	ID          string   `json:"id"`
+	BoardID     string   `json:"boardId"`
+	ColumnID    string   `json:"columnId"`
+	Title       string   `json:"title"`
+	Position    string   `json:"position"`
+	LabelIDs    []string `json:"labelIds"`
+	StartAt     *string  `json:"startAt"` // "YYYY-MM-DD"
+	DueAt       *string  `json:"dueAt"`   // "YYYY-MM-DD", or a UTC timestamp when DueHasTime
+	DueHasTime  bool     `json:"dueHasTime"`
+	CompletedAt *string  `json:"completedAt"`
+	ArchivedAt  *string  `json:"archivedAt"`
+	DeletedAt   *string  `json:"deletedAt,omitempty"`
+	Version     int64    `json:"version"`
+	CreatedAt   string   `json:"createdAt"`
+	UpdatedAt   string   `json:"updatedAt"`
 }
 
 // BoardView is the signed-in user's own view of a board (docs/DESIGN.md
@@ -69,6 +74,7 @@ type BoardDetail struct {
 	Board   Board     `json:"board"`
 	Columns []Column  `json:"columns"`
 	Cards   []Card    `json:"cards"`
+	Labels  []Label   `json:"labels"`
 	View    BoardView `json:"view"`
 }
 
@@ -99,9 +105,73 @@ func columnFromRow(c db.Column) Column {
 func cardFromRow(c db.Card) Card {
 	return Card{
 		ID: c.ID, BoardID: c.BoardID, ColumnID: c.ColumnID, Title: c.Title, Position: c.Position,
-		CompletedAt: nullStr(c.CompletedAt), DeletedAt: nullStr(c.DeletedAt),
+		LabelIDs: []string{}, StartAt: nullStr(c.StartAt), DueAt: nullStr(c.DueAt), DueHasTime: c.DueHasTime != 0,
+		CompletedAt: nullStr(c.CompletedAt), ArchivedAt: nullStr(c.ArchivedAt), DeletedAt: nullStr(c.DeletedAt),
 		Version: c.Version, CreatedAt: c.CreatedAt, UpdatedAt: c.UpdatedAt,
 	}
+}
+
+// withLabels fills in the card's live label IDs.
+func withLabels(ctx context.Context, q *db.Queries, c Card) (Card, error) {
+	ids, err := q.ListLabelIDsForCard(ctx, c.ID)
+	if err != nil {
+		return c, err
+	}
+	if ids != nil {
+		c.LabelIDs = ids
+	}
+	return c, nil
+}
+
+// Nullable distinguishes a JSON field that's absent (leave it alone) from one
+// that's explicitly null (clear it). encoding/json only calls UnmarshalJSON
+// for fields present in the input, so Set records presence.
+type Nullable[T any] struct {
+	Set   bool
+	Value *T
+}
+
+func (n *Nullable[T]) UnmarshalJSON(b []byte) error {
+	n.Set = true
+	if string(b) == "null" {
+		n.Value = nil
+		return nil
+	}
+	var v T
+	if err := json.Unmarshal(b, &v); err != nil {
+		return err
+	}
+	n.Value = &v
+	return nil
+}
+
+const dateOnly = "2006-01-02"
+
+// cleanDate validates a date-only value ("YYYY-MM-DD").
+func cleanDate(v *string, what string) (sql.NullString, error) {
+	if v == nil {
+		return sql.NullString{}, nil
+	}
+	if _, err := time.Parse(dateOnly, *v); err != nil {
+		return sql.NullString{}, &ValidationError{fmt.Sprintf("The %s date must look like 2026-05-31.", what)}
+	}
+	return sql.NullString{String: *v, Valid: true}, nil
+}
+
+// cleanDue validates a due value: a date, or with a time, any RFC 3339
+// timestamp (stored normalized to UTC).
+func cleanDue(v *string, hasTime bool) (sql.NullString, error) {
+	if v == nil {
+		return sql.NullString{}, nil
+	}
+	if !hasTime {
+		return cleanDate(v, "due")
+	}
+	t, err := time.Parse(time.RFC3339, *v)
+	if err != nil {
+		return sql.NullString{}, &ValidationError{"The due time must be a full timestamp, like 2026-05-31T17:00:00-05:00."}
+	}
+	return sql.NullString{String: store.FormatTime(t), Valid: true}, nil
 }
 
 // tx runs fn in one write transaction. BEGIN IMMEDIATE (set in the store's
@@ -193,20 +263,32 @@ func (s *Boards) Detail(ctx context.Context, userID, boardID string) (BoardDetai
 	if err != nil {
 		return out, err
 	}
+	labelsByCard := map[string][]string{}
+	links, err := s.st.ListCardLabelsForBoard(ctx, boardID)
+	if err != nil {
+		return out, err
+	}
+	for _, l := range links {
+		labelsByCard[l.CardID] = append(labelsByCard[l.CardID], l.LabelID)
+	}
 	out.Cards = make([]Card, 0, len(cards))
 	for _, c := range cards {
-		out.Cards = append(out.Cards, cardFromRow(c))
+		card := cardFromRow(c)
+		if ids := labelsByCard[c.ID]; ids != nil {
+			card.LabelIDs = ids
+		}
+		out.Cards = append(out.Cards, card)
+	}
+	labels, err := s.st.ListLabels(ctx, boardID)
+	if err != nil {
+		return out, err
+	}
+	out.Labels = make([]Label, 0, len(labels))
+	for _, l := range labels {
+		out.Labels = append(out.Labels, labelFromRow(l))
 	}
 
-	out.View = BoardView{DefaultCardState: "collapsed", Cards: map[string]bool{}, Columns: map[string]bool{}}
-	if raw, err := s.st.GetBoardSettings(ctx, boardID); err == nil {
-		var settings struct {
-			DefaultCardState string `json:"defaultCardState"`
-		}
-		if json.Unmarshal([]byte(raw), &settings) == nil && settings.DefaultCardState == "expanded" {
-			out.View.DefaultCardState = "expanded"
-		}
-	}
+	out.View = BoardView{DefaultCardState: b.Settings.DefaultCardState, Cards: map[string]bool{}, Columns: map[string]bool{}}
 	cv, err := s.st.ListCardViews(ctx, db.ListCardViewsParams{UserID: userID, BoardID: boardID})
 	if err != nil {
 		return out, err
@@ -385,10 +467,15 @@ func (s *Boards) CreateCard(ctx context.Context, userID, columnID, title string,
 // CardPatch holds the fields to change; nil means leave alone. Changing
 // ColumnID moves the card, possibly to another board the user can edit.
 type CardPatch struct {
-	Title     *string `json:"title"`
-	ColumnID  *string `json:"columnId"`
-	Position  *string `json:"position"`
-	Completed *bool   `json:"completed"`
+	Title      *string          `json:"title"`
+	ColumnID   *string          `json:"columnId"`
+	Position   *string          `json:"position"`
+	Completed  *bool            `json:"completed"`
+	Archived   *bool            `json:"archived"`
+	LabelIDs   *[]string        `json:"labelIds"` // the full set; replaces the card's labels
+	StartAt    Nullable[string] `json:"startAt"`  // null clears
+	DueAt      Nullable[string] `json:"dueAt"`    // null clears
+	DueHasTime *bool            `json:"dueHasTime"`
 }
 
 func (s *Boards) UpdateCard(ctx context.Context, userID, cardID string, p CardPatch) (Card, error) {
@@ -404,9 +491,12 @@ func (s *Boards) UpdateCard(ctx context.Context, userID, cardID string, p CardPa
 		if _, err := role(ctx, q, userID, c.BoardID, true); err != nil {
 			return err
 		}
+		// Start from the current row so fields the patch doesn't mention keep
+		// their values.
 		params := db.UpdateCardParams{
 			ID: c.ID, BoardID: c.BoardID, ColumnID: c.ColumnID, Title: c.Title, Position: c.Position,
-			CompletedAt: c.CompletedAt, UpdatedAt: store.FormatTime(s.now()),
+			CompletedAt: c.CompletedAt, StartAt: c.StartAt, DueAt: c.DueAt, DueHasTime: c.DueHasTime,
+			ArchivedAt: c.ArchivedAt, UpdatedAt: store.FormatTime(s.now()),
 		}
 		if p.Title != nil {
 			if params.Title, err = cleanTitle(*p.Title); err != nil {
@@ -450,11 +540,106 @@ func (s *Boards) UpdateCard(ctx context.Context, userID, cardID string, p CardPa
 				params.CompletedAt = sql.NullString{}
 			}
 		}
+		if p.Archived != nil {
+			switch {
+			case *p.Archived && !c.ArchivedAt.Valid:
+				params.ArchivedAt = sql.NullString{String: params.UpdatedAt, Valid: true}
+			case !*p.Archived:
+				params.ArchivedAt = sql.NullString{}
+			}
+		}
+		if p.StartAt.Set {
+			if params.StartAt, err = cleanDate(p.StartAt.Value, "start"); err != nil {
+				return err
+			}
+		}
+		if p.DueHasTime != nil {
+			params.DueHasTime = 0
+			if *p.DueHasTime {
+				params.DueHasTime = 1
+			}
+		}
+		if p.DueAt.Set {
+			if params.DueAt, err = cleanDue(p.DueAt.Value, params.DueHasTime != 0); err != nil {
+				return err
+			}
+		} else if p.DueHasTime != nil && params.DueAt.Valid {
+			return &ValidationError{"Send dueAt along with dueHasTime."}
+		}
+		if !params.DueAt.Valid {
+			params.DueHasTime = 0
+		}
+		if params.StartAt.Valid && params.DueAt.Valid && params.StartAt.String > params.DueAt.String[:len(dateOnly)] {
+			return &ValidationError{"The start date is after the due date."}
+		}
+
 		row, err := q.UpdateCard(ctx, params)
-		out = cardFromRow(row)
+		if err != nil {
+			return err
+		}
+
+		movedBoards := row.BoardID != c.BoardID
+		if movedBoards && p.LabelIDs == nil {
+			// Labels belong to a board; they don't travel with the card.
+			if err := q.ClearCardLabels(ctx, c.ID); err != nil {
+				return err
+			}
+		}
+		if p.LabelIDs != nil {
+			if err := setCardLabels(ctx, q, c.ID, row.BoardID, *p.LabelIDs); err != nil {
+				return err
+			}
+		}
+		out, err = withLabels(ctx, q, cardFromRow(row))
 		return err
 	})
 	return out, err
+}
+
+// setCardLabels replaces a card's labels. Every ID must be a live label on
+// the card's board.
+func setCardLabels(ctx context.Context, q *db.Queries, cardID, boardID string, ids []string) error {
+	if len(ids) > len(LabelColors)*10 {
+		return &ValidationError{"too many labels"}
+	}
+	for _, id := range ids {
+		l, err := q.GetLabel(ctx, id)
+		if errors.Is(err, sql.ErrNoRows) || (err == nil && (l.BoardID != boardID || l.DeletedAt.Valid)) {
+			return &ValidationError{"That label isn't on this board."}
+		}
+		if err != nil {
+			return err
+		}
+	}
+	if err := q.ClearCardLabels(ctx, cardID); err != nil {
+		return err
+	}
+	for _, id := range ids {
+		if err := q.AddCardLabel(ctx, db.AddCardLabelParams{CardID: cardID, LabelID: id}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// Archived lists a board's archived cards, most recent first.
+func (s *Boards) Archived(ctx context.Context, userID, boardID string) ([]Card, error) {
+	if _, err := role(ctx, s.st.Queries, userID, boardID, false); err != nil {
+		return nil, err
+	}
+	rows, err := s.st.ListArchivedCards(ctx, boardID)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]Card, 0, len(rows))
+	for _, r := range rows {
+		c, err := withLabels(ctx, s.st.Queries, cardFromRow(r))
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, c)
+	}
+	return out, nil
 }
 
 // SetCardTrashed moves a card to the trash or back out. Restoring a card
@@ -479,7 +664,10 @@ func (s *Boards) SetCardTrashed(ctx context.Context, userID, cardID string, tras
 			del = sql.NullString{String: now, Valid: true}
 		}
 		row, err := q.SetCardDeleted(ctx, db.SetCardDeletedParams{ID: c.ID, DeletedAt: del, UpdatedAt: now})
-		out = cardFromRow(row)
+		if err != nil {
+			return err
+		}
+		out, err = withLabels(ctx, q, cardFromRow(row))
 		return err
 	})
 	return out, err
@@ -562,5 +750,9 @@ func PurgeTrash(ctx context.Context, st *store.Store, cutoff time.Time) (int64, 
 		return 0, err
 	}
 	n2, err := st.PurgeTrashedColumns(ctx, c)
-	return n1 + n2, err
+	if err != nil {
+		return 0, err
+	}
+	n3, err := st.PurgeTrashedLabels(ctx, c)
+	return n1 + n2 + n3, err
 }

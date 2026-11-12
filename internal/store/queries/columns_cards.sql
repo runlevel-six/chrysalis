@@ -9,9 +9,6 @@ FROM board_members
 JOIN boards ON boards.id = board_members.board_id
 WHERE board_members.user_id = ? AND board_members.board_id = ? AND boards.deleted_at IS NULL;
 
--- name: GetBoardSettings :one
-SELECT settings_json FROM boards WHERE id = ?;
-
 -- name: ListColumns :many
 SELECT * FROM columns
 WHERE board_id = ? AND deleted_at IS NULL
@@ -69,9 +66,17 @@ RETURNING *;
 -- name: UpdateCard :one
 UPDATE cards SET
     board_id = ?, column_id = ?, title = ?, position = ?, completed_at = ?,
+    start_at = ?, due_at = ?, due_has_time = ?, archived_at = ?,
     updated_at = ?, version = version + 1
 WHERE id = ?
 RETURNING *;
+
+-- name: ListArchivedCards :many
+SELECT cards.* FROM cards
+JOIN columns ON columns.id = cards.column_id
+WHERE cards.board_id = ? AND cards.archived_at IS NOT NULL
+  AND cards.deleted_at IS NULL AND columns.deleted_at IS NULL
+ORDER BY cards.archived_at DESC;
 
 -- name: SetCardDeleted :one
 UPDATE cards SET deleted_at = ?, updated_at = ?, version = version + 1

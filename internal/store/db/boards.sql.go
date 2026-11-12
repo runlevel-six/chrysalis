@@ -176,3 +176,42 @@ func (q *Queries) ListBoardsForUser(ctx context.Context, userID string) ([]ListB
 	}
 	return items, nil
 }
+
+const updateBoard = `-- name: UpdateBoard :one
+UPDATE boards SET name = ?, settings_json = ?, updated_at = ?, version = version + 1
+WHERE id = ?
+RETURNING id, owner_id, name, icon, background_type, background_value, settings_json, position, archived_at, created_at, updated_at, deleted_at, version
+`
+
+type UpdateBoardParams struct {
+	Name         string
+	SettingsJson string
+	UpdatedAt    string
+	ID           string
+}
+
+func (q *Queries) UpdateBoard(ctx context.Context, arg UpdateBoardParams) (Board, error) {
+	row := q.db.QueryRowContext(ctx, updateBoard,
+		arg.Name,
+		arg.SettingsJson,
+		arg.UpdatedAt,
+		arg.ID,
+	)
+	var i Board
+	err := row.Scan(
+		&i.ID,
+		&i.OwnerID,
+		&i.Name,
+		&i.Icon,
+		&i.BackgroundType,
+		&i.BackgroundValue,
+		&i.SettingsJson,
+		&i.Position,
+		&i.ArchivedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+		&i.Version,
+	)
+	return i, err
+}

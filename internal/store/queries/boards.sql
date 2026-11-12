@@ -30,3 +30,8 @@ JOIN board_members ON board_members.board_id = boards.id
 WHERE board_members.user_id = ?
   AND boards.id = ?
   AND boards.deleted_at IS NULL;
+
+-- name: UpdateBoard :one
+UPDATE boards SET name = ?, settings_json = ?, updated_at = ?, version = version + 1
+WHERE id = ?
+RETURNING *;
