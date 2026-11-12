@@ -861,12 +861,14 @@ seeds/
 deploy/
   compose/
   k8s/
-docs/
+docs/                    # Diátaxis: each page is one kind; README.md indexes them by reader
+  README.md              # index with reading paths
   DESIGN.md              # this document
-  branding.md            # theme.json schema, fictional example
-  restore.md
-  auth.md                # both modes; Authelia, Authentik, Keycloak examples
-  trello-import.md
+  how-to/                # restore from a backup, configure auth (both modes), import from Trello, add a branding theme
+  reference/             # configuration (env vars), theme.json schema with a fictional example, API, glossary
+  explanation/           # architecture, security model, why calm-by-default
+  tutorials/             # e.g. self-host with Docker Compose, start to finish
+  adr/                   # decision records
 scripts/
   check-private.sh       # denylist check against local/denylist.txt
 testdata/                # synthetic fixtures only
