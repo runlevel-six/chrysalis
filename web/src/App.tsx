@@ -8,6 +8,7 @@ import { api, ApiError, type Board } from "./api";
 import markUrl from "./art/mark-small.svg";
 import emptyStateSvg from "./art/empty-state.svg?raw";
 import { Link, navigate, usePath } from "./router";
+import { BoardPage } from "./board/BoardPage";
 
 export function App() {
   const path = usePath();
@@ -20,7 +21,14 @@ export function App() {
   const boardMatch = path.match(/^\/b\/([^/]+)$/);
   let page;
   if (path === "/") page = <BoardList />;
-  else if (boardMatch) page = <BoardPage id={decodeURIComponent(boardMatch[1])} />;
+  else if (boardMatch)
+    page = (
+      <BoardPage
+        id={decodeURIComponent(boardMatch[1])}
+        empty={(text) => <EmptyState>{text}</EmptyState>}
+        notFound={<NotFound />}
+      />
+    );
   else page = <NotFound />;
 
   return (
@@ -32,7 +40,7 @@ export function App() {
         </Link>
         {me.data && <span className="muted">{me.data.displayName}</span>}
       </header>
-      <main>{page}</main>
+      <main className={boardMatch ? "is-board" : undefined}>{page}</main>
     </>
   );
 }
@@ -114,22 +122,6 @@ function NewBoardForm() {
         </p>
       )}
     </form>
-  );
-}
-
-function BoardPage({ id }: { id: string }) {
-  const board = useQuery({ queryKey: ["board", id], queryFn: () => api.getBoard(id) });
-  usePageTitle(board.data?.name ?? "");
-
-  if (board.isPending) return <p className="page muted">Loading…</p>;
-  if (board.error instanceof ApiError && board.error.status === 404) return <NotFound />;
-  if (board.error) return <LoadError />;
-
-  return (
-    <section className="page">
-      <h1>{board.data.name}</h1>
-      <EmptyState>A fresh start. Add your first card.</EmptyState>
-    </section>
   );
 }
 

@@ -50,7 +50,7 @@ test("open a board; it survives a reload", async ({ page }) => {
 
   await page.reload();
   await expect(page.getByRole("heading", { name, exact: true })).toBeVisible();
-  await expect(page.getByText("A fresh start. Add your first card.")).toBeVisible();
+  await expect(page.getByText("A fresh start. Add your first column.")).toBeVisible();
 
   await page.getByRole("link", { name: "Chrysalis" }).click();
   await expect(page.getByRole("heading", { name: "Your boards" })).toBeVisible();

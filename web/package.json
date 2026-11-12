@@ -10,7 +10,11 @@
     "icons": "node scripts/render-icons.mjs && pngquant --force --skip-if-larger --quality 80-98 --strip --ext .png public/*.png"
   },
   "dependencies": {
+    "@dnd-kit/core": "6.3.1",
+    "@dnd-kit/sortable": "10.0.0",
+    "@dnd-kit/utilities": "3.2.2",
     "@tanstack/react-query": "5.104.5",
+    "fractional-indexing": "4.0.0",
     "react": "19.3.1",
     "react-dom": "19.3.1"
   },
