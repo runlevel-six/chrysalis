@@ -4,6 +4,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -72,6 +73,10 @@ func (s *server) serviceError(w http.ResponseWriter, r *http.Request, err error)
 		auth.WriteError(w, http.StatusNotFound, "not found")
 	case errors.Is(err, service.ErrForbidden):
 		auth.WriteError(w, http.StatusForbidden, "you can view this board but not change it")
+	case errors.Is(err, context.Canceled) || errors.Is(r.Context().Err(), context.Canceled):
+		// The client went away mid-request (closed the tab, navigated):
+		// nothing is wrong on our side.
+		s.log.Debug("request cancelled by client", "method", r.Method, "path", r.URL.Path)
 	default:
 		s.log.Error("request failed", "method", r.Method, "path", r.URL.Path, "err", err)
 		auth.WriteError(w, http.StatusInternalServerError, "internal error")

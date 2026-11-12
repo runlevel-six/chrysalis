@@ -89,7 +89,7 @@ export function useBoardActions(boardId: string) {
     const position = keyBetween(lastPosition(d.cards.filter((c) => c.columnId === columnId)), null);
     const temp: Card = {
       id: `tmp-${crypto.randomUUID()}`, boardId, columnId, title: title.trim(), position, labelIds: [],
-      startAt: null, dueAt: null, dueHasTime: false, completedAt: null, archivedAt: null,
+      startAt: null, dueAt: null, dueHasTime: false, checklistDone: 0, checklistTotal: 0, completedAt: null, archivedAt: null,
       version: 0, createdAt: "", updatedAt: "",
     };
     const created = await send(

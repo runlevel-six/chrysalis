@@ -5,15 +5,7 @@
 
 import { expect, test, type Page } from "@playwright/test";
 
-import { addCards, card, cardTitles, expectAccessible, newBoard, unique } from "./helpers";
-
-async function expand(page: Page, title: string) {
-  const c = card(page, title);
-  if (await c.getByRole("button", { name: "Expand card" }).isVisible()) {
-    await c.getByRole("button", { name: "Expand card" }).click();
-  }
-  return c;
-}
+import { addCards, card, cardTitles, expand, expectAccessible, newBoard, unique } from "./helpers";
 
 async function openSettings(page: Page) {
   await page.getByRole("button", { name: "Board" }).click();

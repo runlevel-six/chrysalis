@@ -48,6 +48,15 @@ export async function addCards(page: Page, col: string, titles: string[]) {
 /** Wait until debounced view-state writes have reached the server. */
 export const viewSaved = (page: Page) => page.waitForResponse((r) => r.url().endsWith("/view") && r.request().method() === "PUT");
 
+/** Expand a card if it isn't already (expanded state persists across reloads). */
+export async function expand(page: Page, title: string) {
+  const c = card(page, title);
+  if (await c.getByRole("button", { name: "Expand card" }).isVisible()) {
+    await c.getByRole("button", { name: "Expand card" }).click();
+  }
+  return c;
+}
+
 /** Fail on serious or critical axe findings (docs/DESIGN.md §3.11). */
 export async function expectAccessible(page: Page, what: string) {
   const results = await new AxeBuilder({ page }).analyze();

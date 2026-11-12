@@ -54,6 +54,8 @@ export type Card = {
   startAt: string | null; // "YYYY-MM-DD"
   dueAt: string | null; // "YYYY-MM-DD", or a UTC timestamp when dueHasTime
   dueHasTime: boolean;
+  checklistDone: number;
+  checklistTotal: number;
   completedAt: string | null;
   archivedAt: string | null;
   deletedAt?: string;
@@ -67,6 +69,9 @@ export type BoardView = {
   cards: Record<string, boolean>; // card id -> expanded
   columns: Record<string, boolean>; // column id -> collapsed
 };
+
+export type ChecklistItem = { id: string; checklistId: string; text: string; doneAt: string | null; position: string; version: number };
+export type Checklist = { id: string; cardId: string; title: string; position: string; items: ChecklistItem[]; version: number };
 
 export type BoardDetail = { board: Board; columns: Column[]; cards: Card[]; labels: Label[]; view: BoardView };
 export type Trash = { columns: Column[]; cards: Card[] };
@@ -148,4 +153,19 @@ export const api = {
     request<Label>("PATCH", `/labels/${encodeURIComponent(id)}`, patch),
   trashLabel: (id: string) => request<Label>("DELETE", `/labels/${encodeURIComponent(id)}`),
   restoreLabel: (id: string) => request<Label>("POST", `/labels/${encodeURIComponent(id)}/restore`),
+
+  checklists: (cardId: string) =>
+    request<{ checklists: Checklist[] }>("GET", `/cards/${encodeURIComponent(cardId)}/checklists`).then((r) => r.checklists),
+  createChecklist: (cardId: string, title: string) =>
+    request<Checklist>("POST", `/cards/${encodeURIComponent(cardId)}/checklists`, { title }),
+  updateChecklist: (id: string, patch: { title?: string; position?: string }) =>
+    request<Checklist>("PATCH", `/checklists/${encodeURIComponent(id)}`, patch),
+  trashChecklist: (id: string) => request<Checklist>("DELETE", `/checklists/${encodeURIComponent(id)}`),
+  restoreChecklist: (id: string) => request<Checklist>("POST", `/checklists/${encodeURIComponent(id)}/restore`),
+  createItem: (checklistId: string, text: string, position?: string) =>
+    request<ChecklistItem>("POST", `/checklists/${encodeURIComponent(checklistId)}/items`, { text, position }),
+  updateItem: (id: string, patch: { text?: string; done?: boolean; position?: string; checklistId?: string }) =>
+    request<ChecklistItem>("PATCH", `/checklist-items/${encodeURIComponent(id)}`, patch),
+  trashItem: (id: string) => request<ChecklistItem>("DELETE", `/checklist-items/${encodeURIComponent(id)}`),
+  restoreItem: (id: string) => request<ChecklistItem>("POST", `/checklist-items/${encodeURIComponent(id)}/restore`),
 };

@@ -23,6 +23,7 @@ import { arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { api, ApiError, type BoardDetail, type Card, type Column } from "../api";
 import { Dialog, Icon, Menu } from "../ui";
 import { ArchivedDialog, BoardSettingsDialog, CardMeta, DatesDialog, LabelsDialog } from "./details";
+import { Checklists } from "./Checklists";
 import { ColumnView } from "./ColumnView";
 import { TitleEditor, type CardActions, type CardContext } from "./CardItem";
 import { byPosition, keyBetween, useBoardActions, useBoardDetail, useViewState } from "./useBoard";
@@ -383,6 +384,7 @@ function CardFull({
     <Dialog open onClose={onClose} title={card.title} className="card-full">
       <p className="muted">In {column?.name ?? "a column"}</p>
       <CardMeta card={card} labels={ctx.labels} />
+      <Checklists card={card} readOnly={readOnly} />
       {editing ? (
         <TitleEditor
           initial={card.title}

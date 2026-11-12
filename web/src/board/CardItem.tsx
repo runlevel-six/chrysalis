@@ -15,6 +15,7 @@ import { CSS } from "@dnd-kit/utilities";
 import type { BoardSettings, Card, Label } from "../api";
 import { Icon, Menu } from "../ui";
 import { CardMeta, DueText, LabelDots } from "./details";
+import { Checklists } from "./Checklists";
 
 export type CardActions = {
   toggle: (card: Card) => void;
@@ -53,10 +54,10 @@ export function CardItem({
   const done = card.completedAt !== null;
 
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
-    if (e.target !== e.currentTarget || isDragging) {
-      listeners?.onKeyDown?.(e);
-      return;
-    }
+    // Shortcuts apply only when the card itself has focus. Keys from controls
+    // inside it (checklists, buttons, fields) are theirs. Once a keyboard
+    // move is underway, dnd-kit handles keys at the window level.
+    if (e.target !== e.currentTarget || isDragging) return;
     if (e.key === " ") {
       e.preventDefault();
       actions.toggle(card);
@@ -88,8 +89,8 @@ export function CardItem({
       style={{ transform: CSS.Translate.toString(transform), transition }}
       // Mouse and touch can start a drag anywhere on the card; the keyboard
       // sensor runs from onKeyDown below, only on M.
-      onMouseDown={listeners?.onMouseDown as MouseEventHandler<HTMLDivElement> | undefined}
-      onTouchStart={listeners?.onTouchStart as TouchEventHandler<HTMLDivElement> | undefined}
+      onMouseDown={(e) => !fromField(e.target) && (listeners?.onMouseDown as MouseEventHandler<HTMLDivElement> | undefined)?.(e)}
+      onTouchStart={(e) => !fromField(e.target) && (listeners?.onTouchStart as TouchEventHandler<HTMLDivElement> | undefined)?.(e)}
       onKeyDown={onKeyDown}
       onDoubleClick={(e) => {
         if ((e.target as HTMLElement).closest("button, input, textarea")) return;
@@ -138,16 +139,22 @@ export function CardItem({
           <Icon.Expand />
         </button>
       </div>
-      {!expanded && (ctx.settings.showLabels || (ctx.settings.showDueDate && card.dueAt)) && (
+      {!expanded && hasExtras(card, ctx) && (
         // Optional extras on collapsed cards; all off by default (§3.2).
         <div className="card-extras">
           {ctx.settings.showLabels && <LabelDots labels={ctx.labels.filter((l) => card.labelIds.includes(l.id))} />}
           {ctx.settings.showDueDate && <DueText card={card} />}
+          {ctx.settings.showChecklist && card.checklistTotal > 0 && (
+            <span className="checklist-count" aria-label={`Checklist: ${card.checklistDone} of ${card.checklistTotal} done`}>
+              <Icon.Check width={14} height={14} /> {card.checklistDone}/{card.checklistTotal}
+            </span>
+          )}
         </div>
       )}
       {expanded && (
         <div className="card-expanded">
           <CardMeta card={card} labels={ctx.labels} />
+          <Checklists card={card} readOnly={readOnly} />
           {!readOnly && (
             <div className="card-actions">
               <button type="button" className="text-button" onClick={() => actions.setCompleted(card, !done)}>
@@ -176,6 +183,14 @@ export function CardItem({
     </div>
   );
 }
+
+const hasExtras = (card: Card, ctx: CardContext) =>
+  (ctx.settings.showLabels && card.labelIds.length > 0) ||
+  (ctx.settings.showDueDate && !!card.dueAt) ||
+  (ctx.settings.showChecklist && card.checklistTotal > 0);
+
+/** Text fields inside a card shouldn't start a card drag (selecting text would move the card). */
+const fromField = (t: EventTarget) => t instanceof Element && !!t.closest("input, textarea, select, [contenteditable]");
 
 /** Inline title editor: Enter saves, Esc cancels, blur saves. */
 export function TitleEditor({ initial, onDone }: { initial: string; onDone: (value: string | null) => void }) {

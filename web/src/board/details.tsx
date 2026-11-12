@@ -336,6 +336,7 @@ export function BoardSettingsDialog({
         <legend>Collapsed cards also show</legend>
         {toggle("showLabels", "Label colors")}
         {toggle("showDueDate", "Due date")}
+        {toggle("showChecklist", "Checklist progress")}
       </fieldset>
 
       <fieldset className="settings-group">
