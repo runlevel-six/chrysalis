@@ -1,0 +1,25 @@
+# Private, never committed (see docs/DESIGN.md §0.1)
+local/
+
+# Secrets / env
+.env
+*.env.local
+
+# Playwright artifacts (may capture real data)
+playwright-report/
+test-results/
+*.trace.zip
+
+# Local dev SQLite + attachments
+data/
+
+# Build output
+/bin/
+/dist/
+node_modules/
+web/dist/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
