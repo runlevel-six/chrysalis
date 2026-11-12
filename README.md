@@ -1,5 +1,8 @@
 <p align="center">
-  <img src="docs/images/chrysalis-banner.png" alt="Chrysalis: calm self-hosted kanban" width="627">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/images/banner-dark.svg">
+    <img src="docs/images/banner-light.svg" alt="Chrysalis: calm self-hosted kanban" width="640">
+  </picture>
 </p>
 
 # Chrysalis

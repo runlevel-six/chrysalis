@@ -87,7 +87,23 @@ h1 {
 
 .app-mark {
   margin-right: 0.5rem;
-  border-radius: 6px; /* the mark has a cream background; show it as an icon tile */
+}
+
+.empty-state {
+  text-align: center;
+  margin: 2rem 0;
+}
+
+.empty-art {
+  display: inline-block;
+  width: 7rem;
+  color: var(--text-muted);
+}
+
+.empty-art svg {
+  display: block;
+  width: 100%;
+  height: auto;
 }
 
 .page {

@@ -5,6 +5,8 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api, ApiError, type Board } from "./api";
+import markUrl from "./art/mark-small.svg";
+import emptyStateSvg from "./art/empty-state.svg?raw";
 import { Link, navigate, usePath } from "./router";
 
 export function App() {
@@ -25,7 +27,7 @@ export function App() {
     <>
       <header className="app-header">
         <Link to="/" className="app-name">
-          <img src="/icon-192.png" alt="" width="28" height="28" className="app-mark" />
+          <img src={markUrl} alt="" width="28" height="28" className="app-mark" />
           Chrysalis
         </Link>
         {me.data && <span className="muted">{me.data.displayName}</span>}
@@ -50,7 +52,7 @@ function BoardList() {
       <h1>Your boards</h1>
       {boards.isPending && <p className="muted">Loading…</p>}
       {boards.error && <LoadError />}
-      {boards.data?.length === 0 && <p className="empty">A fresh start. Create your first board below.</p>}
+      {boards.data?.length === 0 && <EmptyState>A fresh start. Create your first board below.</EmptyState>}
       {boards.data && boards.data.length > 0 && (
         <ul className="board-list">
           {boards.data.map((b) => (
@@ -126,8 +128,20 @@ function BoardPage({ id }: { id: string }) {
   return (
     <section className="page">
       <h1>{board.data.name}</h1>
-      <p className="empty">A fresh start. Add your first card.</p>
+      <EmptyState>A fresh start. Add your first card.</EmptyState>
     </section>
+  );
+}
+
+// A soft line drawing with one gentle sentence (docs/DESIGN.md §3.12). The
+// SVG is inlined (it's our own static file) so its strokes can use
+// currentColor and follow the theme.
+function EmptyState({ children }: { children: string }) {
+  return (
+    <div className="empty-state">
+      <span className="empty-art" aria-hidden="true" dangerouslySetInnerHTML={{ __html: emptyStateSvg }} />
+      <p className="empty">{children}</p>
+    </div>
   );
 }
 
