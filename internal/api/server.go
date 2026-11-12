@@ -20,14 +20,16 @@ import (
 	"github.com/runlevel-six/chrysalis/internal/auth"
 	"github.com/runlevel-six/chrysalis/internal/config"
 	"github.com/runlevel-six/chrysalis/internal/service"
+	"github.com/runlevel-six/chrysalis/internal/storage"
 	"github.com/runlevel-six/chrysalis/internal/store"
 )
 
 type server struct {
-	cfg    *config.Config
-	store  *store.Store
-	boards *service.Boards
-	log    *slog.Logger
+	cfg         *config.Config
+	store       *store.Store
+	boards      *service.Boards
+	attachments *service.Attachments
+	log         *slog.Logger
 }
 
 // NewHandler returns the app's root handler.
@@ -38,8 +40,10 @@ type server struct {
 // therefore authenticated by default.
 //
 // static is the built web app (index.html and assets/).
-func NewHandler(cfg *config.Config, st *store.Store, authn auth.Authenticator, static fs.FS, log *slog.Logger) http.Handler {
-	s := &server{cfg: cfg, store: st, boards: service.NewBoards(st, time.Now), log: log}
+// files holds attachment content.
+func NewHandler(cfg *config.Config, st *store.Store, files storage.Store, authn auth.Authenticator, static fs.FS, log *slog.Logger) http.Handler {
+	boards := service.NewBoards(st, time.Now)
+	s := &server{cfg: cfg, store: st, boards: boards, attachments: service.NewAttachments(boards, files), log: log}
 
 	protected := http.NewServeMux()
 	protected.HandleFunc("GET /api/v1/me", s.me)
@@ -47,6 +51,7 @@ func NewHandler(cfg *config.Config, st *store.Store, authn auth.Authenticator, s
 	protected.HandleFunc("POST /api/v1/boards", s.createBoard)
 	protected.HandleFunc("GET /api/v1/boards/{id}", s.getBoard)
 	s.registerContent(protected)
+	s.registerAttachments(protected)
 	protected.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
 		auth.WriteError(w, http.StatusNotFound, "not found")
 	})

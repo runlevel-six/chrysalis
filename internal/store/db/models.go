@@ -8,6 +8,24 @@ import (
 	"database/sql"
 )
 
+type Attachment struct {
+	ID         string
+	BoardID    string
+	CardID     sql.NullString
+	UploaderID string
+	Kind       string
+	Filename   string
+	Mime       string
+	SizeBytes  int64
+	StorageKey string
+	ThumbKey   string
+	Url        string
+	Width      int64
+	Height     int64
+	CreatedAt  string
+	DeletedAt  sql.NullString
+}
+
 type Board struct {
 	ID              string
 	OwnerID         string
@@ -45,6 +63,8 @@ type Card struct {
 	StartAt     sql.NullString
 	DueAt       sql.NullString
 	DueHasTime  int64
+	CoverType   string
+	CoverValue  string
 }
 
 type CardDescription struct {

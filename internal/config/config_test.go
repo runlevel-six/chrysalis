@@ -28,7 +28,7 @@ func TestLoadDefaults(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if c.AuthMode != AuthOIDC || c.ListenAddr != ":8080" || c.DataDir != "/data" || c.SessionTTL != 720*time.Hour || c.TrashRetention != 30*24*time.Hour {
+	if c.AuthMode != AuthOIDC || c.ListenAddr != ":8080" || c.DataDir != "/data" || c.SessionTTL != 720*time.Hour || c.TrashRetention != 30*24*time.Hour || c.MaxUploadBytes != 25<<20 || c.StorageBackend != "local" {
 		t.Errorf("unexpected defaults: %+v", c)
 	}
 	if got := c.BaseURL.String(); got != "https://board.example.home" {
@@ -59,6 +59,8 @@ func TestLoadErrors(t *testing.T) {
 		{"dev without dev mode", map[string]string{"CHRYSALIS_BASE_URL": "http://localhost:8080", "CHRYSALIS_AUTH_MODE": "dev"}, "CHRYSALIS_DEV_MODE=true"},
 		{"unknown mode", map[string]string{"CHRYSALIS_BASE_URL": "http://localhost:8080", "CHRYSALIS_AUTH_MODE": "magic"}, "must be oidc, header or dev"},
 		{"bad trash retention", map[string]string{"CHRYSALIS_BASE_URL": "http://localhost:8080", "CHRYSALIS_AUTH_MODE": "dev", "CHRYSALIS_DEV_MODE": "true", "CHRYSALIS_TRASH_RETENTION_DAYS": "0"}, "TRASH_RETENTION_DAYS"},
+		{"upload limit zero", map[string]string{"CHRYSALIS_BASE_URL": "http://localhost:8080", "CHRYSALIS_AUTH_MODE": "dev", "CHRYSALIS_DEV_MODE": "true", "CHRYSALIS_MAX_UPLOAD_MB": "0"}, "MAX_UPLOAD_MB"},
+		{"s3 not yet", map[string]string{"CHRYSALIS_BASE_URL": "http://localhost:8080", "CHRYSALIS_AUTH_MODE": "dev", "CHRYSALIS_DEV_MODE": "true", "CHRYSALIS_STORAGE_BACKEND": "s3"}, "isn't available yet"},
 		{"bad ttl", map[string]string{"CHRYSALIS_BASE_URL": "http://localhost:8080", "CHRYSALIS_AUTH_MODE": "dev", "CHRYSALIS_DEV_MODE": "true", "CHRYSALIS_SESSION_TTL": "forever"}, "SESSION_TTL"},
 	}
 	for _, tt := range tests {

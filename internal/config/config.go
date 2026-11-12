@@ -33,6 +33,10 @@ type Config struct {
 	// TrashRetention is how long trashed items can be restored before they're
 	// permanently deleted.
 	TrashRetention time.Duration
+	// MaxUploadBytes caps a single attachment upload.
+	MaxUploadBytes int64
+	// StorageBackend is where attachments live: "local" (under DataDir).
+	StorageBackend string
 
 	OIDC           OIDC
 	Header         Header
@@ -52,6 +56,9 @@ type OIDC struct {
 type Header struct {
 	User, Email, Name, Groups string
 }
+
+// AttachmentsDir is where the local storage backend keeps files.
+func (c *Config) AttachmentsDir() string { return filepath.Join(c.DataDir, "attachments") }
 
 // DBPath is where the SQLite database lives.
 func (c *Config) DBPath() string { return filepath.Join(c.DataDir, "chrysalis.db") }
@@ -112,6 +119,21 @@ func Load(getenv func(string) string) (*Config, error) {
 		errs = append(errs, errors.New("CHRYSALIS_TRASH_RETENTION_DAYS must be a whole number of days, at least 1"))
 	}
 	c.TrashRetention = time.Duration(days) * 24 * time.Hour
+
+	mb, err := strconv.Atoi(env("MAX_UPLOAD_MB", "25"))
+	if err != nil || mb < 1 || mb > 1024 {
+		errs = append(errs, errors.New("CHRYSALIS_MAX_UPLOAD_MB must be a whole number from 1 to 1024"))
+	}
+	c.MaxUploadBytes = int64(mb) << 20
+
+	c.StorageBackend = env("STORAGE_BACKEND", "local")
+	switch c.StorageBackend {
+	case "local":
+	case "s3":
+		errs = append(errs, errors.New("CHRYSALIS_STORAGE_BACKEND=s3 isn't available yet; use local"))
+	default:
+		errs = append(errs, fmt.Errorf("CHRYSALIS_STORAGE_BACKEND %q must be local", c.StorageBackend))
+	}
 
 	for _, s := range splitList(env("TRUSTED_PROXY_CIDRS", "")) {
 		p, err := netip.ParsePrefix(s)

@@ -19,6 +19,7 @@ import (
 	"github.com/runlevel-six/chrysalis/internal/auth"
 	"github.com/runlevel-six/chrysalis/internal/config"
 	"github.com/runlevel-six/chrysalis/internal/service"
+	"github.com/runlevel-six/chrysalis/internal/storage"
 	"github.com/runlevel-six/chrysalis/internal/store"
 	"github.com/runlevel-six/chrysalis/web"
 )
@@ -57,13 +58,18 @@ func run() error {
 	}
 	defer func() { _ = st.Close() }()
 
+	files, err := storage.NewLocal(cfg.AttachmentsDir())
+	if err != nil {
+		return err
+	}
+
 	authn := newAuthenticator(cfg, st, log)
 	go purgeExpiredSessions(ctx, st, log)
-	go purgeTrash(ctx, st, cfg.TrashRetention, log)
+	go purgeTrash(ctx, st, files, cfg.TrashRetention, log)
 
 	srv := &http.Server{
 		Addr:              cfg.ListenAddr,
-		Handler:           api.NewHandler(cfg, st, authn, web.Dist(), log),
+		Handler:           api.NewHandler(cfg, st, files, authn, web.Dist(), log),
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 	errc := make(chan error, 1)
@@ -126,11 +132,19 @@ func purgeExpiredSessions(ctx context.Context, st *store.Store, log *slog.Logger
 
 // purgeTrash permanently deletes items that have been in the trash longer
 // than the retention period, hourly.
-func purgeTrash(ctx context.Context, st *store.Store, retention time.Duration, log *slog.Logger) {
+func purgeTrash(ctx context.Context, st *store.Store, files storage.Store, retention time.Duration, log *slog.Logger) {
 	t := time.NewTicker(time.Hour)
 	defer t.Stop()
 	for {
-		n, err := service.PurgeTrash(ctx, st, time.Now().Add(-retention))
+		cutoff := time.Now().Add(-retention)
+		// Attachment files first: once their cards are gone, nothing would
+		// point at them any more.
+		if n, err := service.PurgeFiles(ctx, st, files, cutoff); err != nil && ctx.Err() == nil {
+			log.Error("purge attachment files", "err", err)
+		} else if n > 0 {
+			log.Info("purged attachment files", "count", n)
+		}
+		n, err := service.PurgeTrash(ctx, st, cutoff)
 		if err != nil && ctx.Err() == nil {
 			log.Error("purge trash", "err", err)
 		} else if n > 0 {

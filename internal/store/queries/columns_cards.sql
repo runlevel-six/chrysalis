@@ -67,6 +67,7 @@ RETURNING *;
 UPDATE cards SET
     board_id = ?, column_id = ?, title = ?, position = ?, completed_at = ?,
     start_at = ?, due_at = ?, due_has_time = ?, archived_at = ?,
+    cover_type = ?, cover_value = ?,
     updated_at = ?, version = version + 1
 WHERE id = ?
 RETURNING *;

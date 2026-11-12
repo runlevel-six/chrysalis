@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -50,14 +51,16 @@ type Card struct {
 	Title      string   `json:"title"`
 	Position   string   `json:"position"`
 	LabelIDs   []string `json:"labelIds"`
+	Cover      Cover    `json:"cover"`
 	StartAt    *string  `json:"startAt"` // "YYYY-MM-DD"
 	DueAt      *string  `json:"dueAt"`   // "YYYY-MM-DD", or a UTC timestamp when DueHasTime
 	DueHasTime bool     `json:"dueHasTime"`
 	// Checklist progress across all of the card's checklists. Only filled in
 	// on the board detail, for "2/5" on collapsed cards.
-	ChecklistDone  int64   `json:"checklistDone"`
-	HasDescription bool    `json:"hasDescription"` // board detail only
-	ChecklistTotal int64   `json:"checklistTotal"`
+	ChecklistDone  int64 `json:"checklistDone"`
+	ChecklistTotal int64 `json:"checklistTotal"`
+	// Board detail only: whether there's a description to load.
+	HasDescription bool    `json:"hasDescription"`
 	CompletedAt    *string `json:"completedAt"`
 	ArchivedAt     *string `json:"archivedAt"`
 	DeletedAt      *string `json:"deletedAt,omitempty"`
@@ -110,7 +113,7 @@ func columnFromRow(c db.Column) Column {
 func cardFromRow(c db.Card) Card {
 	return Card{
 		ID: c.ID, BoardID: c.BoardID, ColumnID: c.ColumnID, Title: c.Title, Position: c.Position,
-		LabelIDs: []string{}, StartAt: nullStr(c.StartAt), DueAt: nullStr(c.DueAt), DueHasTime: c.DueHasTime != 0,
+		LabelIDs: []string{}, Cover: Cover{Type: c.CoverType, Value: c.CoverValue}, StartAt: nullStr(c.StartAt), DueAt: nullStr(c.DueAt), DueHasTime: c.DueHasTime != 0,
 		CompletedAt: nullStr(c.CompletedAt), ArchivedAt: nullStr(c.ArchivedAt), DeletedAt: nullStr(c.DeletedAt),
 		Version: c.Version, CreatedAt: c.CreatedAt, UpdatedAt: c.UpdatedAt,
 	}
@@ -501,6 +504,14 @@ type CardPatch struct {
 	StartAt    Nullable[string] `json:"startAt"`  // null clears
 	DueAt      Nullable[string] `json:"dueAt"`    // null clears
 	DueHasTime *bool            `json:"dueHasTime"`
+	Cover      *Cover           `json:"cover"`
+}
+
+// Cover is a card's cover: a palette color (same keys as labels, so every
+// theme keeps it readable) or one of the card's own image attachments.
+type Cover struct {
+	Type  string `json:"type"`  // none | color | image
+	Value string `json:"value"` // palette key, or attachment ID
 }
 
 func (s *Boards) UpdateCard(ctx context.Context, userID, cardID string, p CardPatch) (Card, error) {
@@ -521,7 +532,8 @@ func (s *Boards) UpdateCard(ctx context.Context, userID, cardID string, p CardPa
 		params := db.UpdateCardParams{
 			ID: c.ID, BoardID: c.BoardID, ColumnID: c.ColumnID, Title: c.Title, Position: c.Position,
 			CompletedAt: c.CompletedAt, StartAt: c.StartAt, DueAt: c.DueAt, DueHasTime: c.DueHasTime,
-			ArchivedAt: c.ArchivedAt, UpdatedAt: store.FormatTime(s.now()),
+			ArchivedAt: c.ArchivedAt, CoverType: c.CoverType, CoverValue: c.CoverValue,
+			UpdatedAt: store.FormatTime(s.now()),
 		}
 		if p.Title != nil {
 			if params.Title, err = cleanTitle(*p.Title); err != nil {
@@ -598,6 +610,21 @@ func (s *Boards) UpdateCard(ctx context.Context, userID, cardID string, p CardPa
 			return &ValidationError{"The start date is after the due date."}
 		}
 
+		if p.Cover != nil {
+			if err := checkCover(ctx, q, c.ID, *p.Cover); err != nil {
+				return err
+			}
+			params.CoverType, params.CoverValue = p.Cover.Type, p.Cover.Value
+			if p.Cover.Type == "none" {
+				params.CoverValue = ""
+			}
+		}
+		if params.BoardID != c.BoardID && params.CoverType == "image" {
+			// The image stays with the card, but it stops being the cover
+			// when the card moves to another board.
+			params.CoverType, params.CoverValue = "none", ""
+		}
+
 		row, err := q.UpdateCard(ctx, params)
 		if err != nil {
 			return err
@@ -619,6 +646,25 @@ func (s *Boards) UpdateCard(ctx context.Context, userID, cardID string, p CardPa
 		return err
 	})
 	return out, err
+}
+
+func checkCover(ctx context.Context, q *db.Queries, cardID string, cv Cover) error {
+	switch cv.Type {
+	case "none":
+		return nil
+	case "color":
+		if !slices.Contains(LabelColors, cv.Value) {
+			return &ValidationError{"Pick one of the cover colors."}
+		}
+		return nil
+	case "image":
+		a, err := q.GetAttachment(ctx, cv.Value)
+		if errors.Is(err, sql.ErrNoRows) || (err == nil && (!a.CardID.Valid || a.CardID.String != cardID || a.Kind != "image" || a.DeletedAt.Valid)) {
+			return &ValidationError{"A cover image must be one of this card's images."}
+		}
+		return err
+	}
+	return &ValidationError{"cover type must be none, color or image"}
 }
 
 // setCardLabels replaces a card's labels. Every ID must be a live label on

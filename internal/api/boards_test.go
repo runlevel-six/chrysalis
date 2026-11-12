@@ -21,6 +21,7 @@ import (
 	"github.com/runlevel-six/chrysalis/internal/auth"
 	"github.com/runlevel-six/chrysalis/internal/config"
 	"github.com/runlevel-six/chrysalis/internal/service"
+	"github.com/runlevel-six/chrysalis/internal/storage"
 	"github.com/runlevel-six/chrysalis/internal/store"
 )
 
@@ -31,22 +32,31 @@ type multiUser struct {
 	dbPath string
 	h      http.Handler
 	st     *store.Store
+	files  storage.Store
+	env    map[string]string
 }
 
 func newMultiUser(t *testing.T, static fs.FS) *multiUser {
-	m := &multiUser{t: t, dbPath: filepath.Join(t.TempDir(), "test.db")}
+	return newMultiUserWith(t, static, nil)
+}
+
+// newMultiUserWith adds or overrides CHRYSALIS_* settings for one test.
+func newMultiUserWith(t *testing.T, static fs.FS, env map[string]string) *multiUser {
+	m := &multiUser{t: t, dbPath: filepath.Join(t.TempDir(), "test.db"), env: env}
 	m.open(static)
 	return m
 }
 
 func (m *multiUser) open(static fs.FS) {
-	cfg, err := config.Load(func(k string) string {
-		return map[string]string{
-			"CHRYSALIS_BASE_URL":            "https://board.example.home",
-			"CHRYSALIS_AUTH_MODE":           "header",
-			"CHRYSALIS_TRUSTED_PROXY_CIDRS": "192.0.2.0/24",
-		}[k]
-	})
+	settings := map[string]string{
+		"CHRYSALIS_BASE_URL":            "https://board.example.home",
+		"CHRYSALIS_AUTH_MODE":           "header",
+		"CHRYSALIS_TRUSTED_PROXY_CIDRS": "192.0.2.0/24",
+	}
+	for k, v := range m.env {
+		settings[k] = v
+	}
+	cfg, err := config.Load(func(k string) string { return settings[k] })
 	if err != nil {
 		m.t.Fatal(err)
 	}
@@ -58,7 +68,12 @@ func (m *multiUser) open(static fs.FS) {
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
 	authn := auth.NewHeaderAuth(cfg.Header, []netip.Prefix{netip.MustParsePrefix("192.0.2.0/24")}, auth.NewUsers(st.Queries, time.Now), log)
 	m.st = st
-	m.h = NewHandler(cfg, st, authn, static, log)
+	files, err := storage.NewLocal(filepath.Join(filepath.Dir(m.dbPath), "attachments"))
+	if err != nil {
+		m.t.Fatal(err)
+	}
+	m.files = files
+	m.h = NewHandler(cfg, st, files, authn, static, log)
 }
 
 // as sends a request as user ("" = no identity header).

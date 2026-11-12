@@ -24,7 +24,7 @@ func (q *Queries) CountLiveCardsInColumn(ctx context.Context, columnID string) (
 const createCard = `-- name: CreateCard :one
 INSERT INTO cards (id, board_id, column_id, title, position, created_at, updated_at)
 VALUES (?, ?, ?, ?, ?, ?, ?)
-RETURNING id, board_id, column_id, title, position, completed_at, archived_at, created_at, updated_at, deleted_at, version, start_at, due_at, due_has_time
+RETURNING id, board_id, column_id, title, position, completed_at, archived_at, created_at, updated_at, deleted_at, version, start_at, due_at, due_has_time, cover_type, cover_value
 `
 
 type CreateCardParams struct {
@@ -63,6 +63,8 @@ func (q *Queries) CreateCard(ctx context.Context, arg CreateCardParams) (Card, e
 		&i.StartAt,
 		&i.DueAt,
 		&i.DueHasTime,
+		&i.CoverType,
+		&i.CoverValue,
 	)
 	return i, err
 }
@@ -134,7 +136,7 @@ func (q *Queries) GetBoardRole(ctx context.Context, arg GetBoardRoleParams) (str
 }
 
 const getCard = `-- name: GetCard :one
-SELECT id, board_id, column_id, title, position, completed_at, archived_at, created_at, updated_at, deleted_at, version, start_at, due_at, due_has_time FROM cards WHERE id = ?
+SELECT id, board_id, column_id, title, position, completed_at, archived_at, created_at, updated_at, deleted_at, version, start_at, due_at, due_has_time, cover_type, cover_value FROM cards WHERE id = ?
 `
 
 func (q *Queries) GetCard(ctx context.Context, id string) (Card, error) {
@@ -155,6 +157,8 @@ func (q *Queries) GetCard(ctx context.Context, id string) (Card, error) {
 		&i.StartAt,
 		&i.DueAt,
 		&i.DueHasTime,
+		&i.CoverType,
+		&i.CoverValue,
 	)
 	return i, err
 }
@@ -206,7 +210,7 @@ func (q *Queries) LastColumnPosition(ctx context.Context, boardID string) (strin
 }
 
 const listArchivedCards = `-- name: ListArchivedCards :many
-SELECT cards.id, cards.board_id, cards.column_id, cards.title, cards.position, cards.completed_at, cards.archived_at, cards.created_at, cards.updated_at, cards.deleted_at, cards.version, cards.start_at, cards.due_at, cards.due_has_time FROM cards
+SELECT cards.id, cards.board_id, cards.column_id, cards.title, cards.position, cards.completed_at, cards.archived_at, cards.created_at, cards.updated_at, cards.deleted_at, cards.version, cards.start_at, cards.due_at, cards.due_has_time, cards.cover_type, cards.cover_value FROM cards
 JOIN columns ON columns.id = cards.column_id
 WHERE cards.board_id = ? AND cards.archived_at IS NOT NULL
   AND cards.deleted_at IS NULL AND columns.deleted_at IS NULL
@@ -237,6 +241,8 @@ func (q *Queries) ListArchivedCards(ctx context.Context, boardID string) ([]Card
 			&i.StartAt,
 			&i.DueAt,
 			&i.DueHasTime,
+			&i.CoverType,
+			&i.CoverValue,
 		); err != nil {
 			return nil, err
 		}
@@ -292,7 +298,7 @@ func (q *Queries) ListCardViews(ctx context.Context, arg ListCardViewsParams) ([
 }
 
 const listCards = `-- name: ListCards :many
-SELECT cards.id, cards.board_id, cards.column_id, cards.title, cards.position, cards.completed_at, cards.archived_at, cards.created_at, cards.updated_at, cards.deleted_at, cards.version, cards.start_at, cards.due_at, cards.due_has_time FROM cards
+SELECT cards.id, cards.board_id, cards.column_id, cards.title, cards.position, cards.completed_at, cards.archived_at, cards.created_at, cards.updated_at, cards.deleted_at, cards.version, cards.start_at, cards.due_at, cards.due_has_time, cards.cover_type, cards.cover_value FROM cards
 JOIN columns ON columns.id = cards.column_id
 WHERE cards.board_id = ?
   AND cards.deleted_at IS NULL
@@ -327,6 +333,8 @@ func (q *Queries) ListCards(ctx context.Context, boardID string) ([]Card, error)
 			&i.StartAt,
 			&i.DueAt,
 			&i.DueHasTime,
+			&i.CoverType,
+			&i.CoverValue,
 		); err != nil {
 			return nil, err
 		}
@@ -424,7 +432,7 @@ func (q *Queries) ListColumns(ctx context.Context, boardID string) ([]Column, er
 }
 
 const listTrashedCards = `-- name: ListTrashedCards :many
-SELECT cards.id, cards.board_id, cards.column_id, cards.title, cards.position, cards.completed_at, cards.archived_at, cards.created_at, cards.updated_at, cards.deleted_at, cards.version, cards.start_at, cards.due_at, cards.due_has_time FROM cards
+SELECT cards.id, cards.board_id, cards.column_id, cards.title, cards.position, cards.completed_at, cards.archived_at, cards.created_at, cards.updated_at, cards.deleted_at, cards.version, cards.start_at, cards.due_at, cards.due_has_time, cards.cover_type, cards.cover_value FROM cards
 JOIN columns ON columns.id = cards.column_id
 WHERE cards.board_id = ? AND cards.deleted_at IS NOT NULL AND columns.deleted_at IS NULL
 ORDER BY cards.deleted_at DESC
@@ -455,6 +463,8 @@ func (q *Queries) ListTrashedCards(ctx context.Context, boardID string) ([]Card,
 			&i.StartAt,
 			&i.DueAt,
 			&i.DueHasTime,
+			&i.CoverType,
+			&i.CoverValue,
 		); err != nil {
 			return nil, err
 		}
@@ -537,7 +547,7 @@ func (q *Queries) PurgeTrashedColumns(ctx context.Context, deletedAt sql.NullStr
 const setCardDeleted = `-- name: SetCardDeleted :one
 UPDATE cards SET deleted_at = ?, updated_at = ?, version = version + 1
 WHERE id = ?
-RETURNING id, board_id, column_id, title, position, completed_at, archived_at, created_at, updated_at, deleted_at, version, start_at, due_at, due_has_time
+RETURNING id, board_id, column_id, title, position, completed_at, archived_at, created_at, updated_at, deleted_at, version, start_at, due_at, due_has_time, cover_type, cover_value
 `
 
 type SetCardDeletedParams struct {
@@ -564,6 +574,8 @@ func (q *Queries) SetCardDeleted(ctx context.Context, arg SetCardDeletedParams) 
 		&i.StartAt,
 		&i.DueAt,
 		&i.DueHasTime,
+		&i.CoverType,
+		&i.CoverValue,
 	)
 	return i, err
 }
@@ -605,9 +617,10 @@ const updateCard = `-- name: UpdateCard :one
 UPDATE cards SET
     board_id = ?, column_id = ?, title = ?, position = ?, completed_at = ?,
     start_at = ?, due_at = ?, due_has_time = ?, archived_at = ?,
+    cover_type = ?, cover_value = ?,
     updated_at = ?, version = version + 1
 WHERE id = ?
-RETURNING id, board_id, column_id, title, position, completed_at, archived_at, created_at, updated_at, deleted_at, version, start_at, due_at, due_has_time
+RETURNING id, board_id, column_id, title, position, completed_at, archived_at, created_at, updated_at, deleted_at, version, start_at, due_at, due_has_time, cover_type, cover_value
 `
 
 type UpdateCardParams struct {
@@ -620,6 +633,8 @@ type UpdateCardParams struct {
 	DueAt       sql.NullString
 	DueHasTime  int64
 	ArchivedAt  sql.NullString
+	CoverType   string
+	CoverValue  string
 	UpdatedAt   string
 	ID          string
 }
@@ -635,6 +650,8 @@ func (q *Queries) UpdateCard(ctx context.Context, arg UpdateCardParams) (Card, e
 		arg.DueAt,
 		arg.DueHasTime,
 		arg.ArchivedAt,
+		arg.CoverType,
+		arg.CoverValue,
 		arg.UpdatedAt,
 		arg.ID,
 	)
@@ -654,6 +671,8 @@ func (q *Queries) UpdateCard(ctx context.Context, arg UpdateCardParams) (Card, e
 		&i.StartAt,
 		&i.DueAt,
 		&i.DueHasTime,
+		&i.CoverType,
+		&i.CoverValue,
 	)
 	return i, err
 }

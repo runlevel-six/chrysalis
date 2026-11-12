@@ -18,6 +18,7 @@ import (
 
 	"github.com/runlevel-six/chrysalis/internal/auth"
 	"github.com/runlevel-six/chrysalis/internal/config"
+	"github.com/runlevel-six/chrysalis/internal/storage"
 	"github.com/runlevel-six/chrysalis/internal/store"
 )
 
@@ -40,7 +41,11 @@ func newTestServer(t *testing.T) (http.Handler, *store.Store) {
 	t.Cleanup(func() { st.Close() })
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
 	authn := auth.NewDevAuth(auth.NewUsers(st.Queries, time.Now), log)
-	return NewHandler(cfg, st, authn, testStatic, log), st
+	files, err := storage.NewLocal(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	return NewHandler(cfg, st, files, authn, testStatic, log), st
 }
 
 var testStatic = fstest.MapFS{
