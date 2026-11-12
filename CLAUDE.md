@@ -6,7 +6,7 @@
 - Stop and ask the maintainer before deviating from a **[DECIDED]** item, adding
   a feature not in the design, or touching anything outside the app's namespace.
 - Run `make hooks` once per clone. Hooks run `scripts/check-private.sh`
-  (denylist) and gitleaks before every commit.
+  (denylist) and betterleaks before every commit.
 - Use placeholders only: `example.com`, `board.example.home`, users `alice`/`bob`.
 - Source files carry `Copyright 2026 Jason Hall` and
   `SPDX-License-Identifier: Apache-2.0` headers.

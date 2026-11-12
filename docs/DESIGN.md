@@ -60,7 +60,7 @@ local/
 **Placeholders in docs, examples and tests:** `example.com`, `board.example.home`, users `alice`/`bob`, boards like "Garden plans."
 
 **Guardrails:**
-- **gitleaks** for secret scanning, in a pre-commit hook and in CI.
+- **betterleaks** for secret scanning, in a pre-commit hook and in CI.
 - **`scripts/check-private.sh`**, a generic script committed to the repo:
   - if `local/denylist.txt` exists, it fails when any listed term (case-insensitive) appears in the staged diff or the commit message;
   - it runs as a pre-commit hook, installed via `make hooks` or the pre-commit framework;
@@ -803,7 +803,7 @@ local/deploy/k8s/  # GITIGNORED: the maintainer's real overlay, based on ../../.
   - lint (golangci-lint, eslint, prettier);
   - unit, integration and Playwright tests;
   - axe checks;
-  - gitleaks;
+  - betterleaks;
   - dependency license checks (§0.2);
   - multi-arch image build.
 - Tagged releases publish images to GHCR.
@@ -862,7 +862,7 @@ deploy/
   compose/
   k8s/
 docs/
-  design.md              # this document
+  DESIGN.md              # this document
   branding.md            # theme.json schema, fictional example
   restore.md
   auth.md                # both modes; Authelia, Authentik, Keycloak examples
