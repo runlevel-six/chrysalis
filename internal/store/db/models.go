@@ -52,6 +52,29 @@ type CardLabel struct {
 	LabelID string
 }
 
+type Checklist struct {
+	ID        string
+	CardID    string
+	Title     string
+	Position  string
+	CreatedAt string
+	UpdatedAt string
+	DeletedAt sql.NullString
+	Version   int64
+}
+
+type ChecklistItem struct {
+	ID          string
+	ChecklistID string
+	Text        string
+	DoneAt      sql.NullString
+	Position    string
+	CreatedAt   string
+	UpdatedAt   string
+	DeletedAt   sql.NullString
+	Version     int64
+}
+
 type Column struct {
 	ID           string
 	BoardID      string

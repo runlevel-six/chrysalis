@@ -28,6 +28,101 @@ func (s *server) registerContent(mux *http.ServeMux) {
 	mux.HandleFunc("PATCH /api/v1/labels/{id}", s.updateLabel)
 	mux.HandleFunc("DELETE /api/v1/labels/{id}", s.trashLabel(true))
 	mux.HandleFunc("POST /api/v1/labels/{id}/restore", s.trashLabel(false))
+	mux.HandleFunc("GET /api/v1/cards/{id}/checklists", s.listChecklists)
+	mux.HandleFunc("POST /api/v1/cards/{id}/checklists", s.createChecklist)
+	mux.HandleFunc("PATCH /api/v1/checklists/{id}", s.updateChecklist)
+	mux.HandleFunc("DELETE /api/v1/checklists/{id}", s.trashChecklist(true))
+	mux.HandleFunc("POST /api/v1/checklists/{id}/restore", s.trashChecklist(false))
+	mux.HandleFunc("POST /api/v1/checklists/{id}/items", s.createChecklistItem)
+	mux.HandleFunc("PATCH /api/v1/checklist-items/{id}", s.updateChecklistItem)
+	mux.HandleFunc("DELETE /api/v1/checklist-items/{id}", s.trashChecklistItem(true))
+	mux.HandleFunc("POST /api/v1/checklist-items/{id}/restore", s.trashChecklistItem(false))
+}
+
+func (s *server) listChecklists(w http.ResponseWriter, r *http.Request) {
+	lists, err := s.boards.Checklists(r.Context(), userID(r), r.PathValue("id"))
+	if err != nil {
+		s.serviceError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"checklists": lists})
+}
+
+func (s *server) createChecklist(w http.ResponseWriter, r *http.Request) {
+	var req createReq
+	if !decodeJSON(w, r, &req) {
+		return
+	}
+	cl, err := s.boards.CreateChecklist(r.Context(), userID(r), r.PathValue("id"), req.Title)
+	if err != nil {
+		s.serviceError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusCreated, cl)
+}
+
+func (s *server) updateChecklist(w http.ResponseWriter, r *http.Request) {
+	var p service.ChecklistPatch
+	if !decodeJSON(w, r, &p) {
+		return
+	}
+	cl, err := s.boards.UpdateChecklist(r.Context(), userID(r), r.PathValue("id"), p)
+	if err != nil {
+		s.serviceError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, cl)
+}
+
+func (s *server) trashChecklist(trashed bool) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		cl, err := s.boards.SetChecklistTrashed(r.Context(), userID(r), r.PathValue("id"), trashed)
+		if err != nil {
+			s.serviceError(w, r, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, cl)
+	}
+}
+
+func (s *server) createChecklistItem(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Text     string  `json:"text"`
+		Position *string `json:"position"`
+	}
+	if !decodeJSON(w, r, &req) {
+		return
+	}
+	it, err := s.boards.CreateChecklistItem(r.Context(), userID(r), r.PathValue("id"), req.Text, req.Position)
+	if err != nil {
+		s.serviceError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusCreated, it)
+}
+
+func (s *server) updateChecklistItem(w http.ResponseWriter, r *http.Request) {
+	var p service.ChecklistItemPatch
+	if !decodeJSON(w, r, &p) {
+		return
+	}
+	it, err := s.boards.UpdateChecklistItem(r.Context(), userID(r), r.PathValue("id"), p)
+	if err != nil {
+		s.serviceError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, it)
+}
+
+func (s *server) trashChecklistItem(trashed bool) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		it, err := s.boards.SetChecklistItemTrashed(r.Context(), userID(r), r.PathValue("id"), trashed)
+		if err != nil {
+			s.serviceError(w, r, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, it)
+	}
 }
 
 func (s *server) updateBoard(w http.ResponseWriter, r *http.Request) {

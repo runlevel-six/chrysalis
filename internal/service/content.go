@@ -44,21 +44,25 @@ type Column struct {
 }
 
 type Card struct {
-	ID          string   `json:"id"`
-	BoardID     string   `json:"boardId"`
-	ColumnID    string   `json:"columnId"`
-	Title       string   `json:"title"`
-	Position    string   `json:"position"`
-	LabelIDs    []string `json:"labelIds"`
-	StartAt     *string  `json:"startAt"` // "YYYY-MM-DD"
-	DueAt       *string  `json:"dueAt"`   // "YYYY-MM-DD", or a UTC timestamp when DueHasTime
-	DueHasTime  bool     `json:"dueHasTime"`
-	CompletedAt *string  `json:"completedAt"`
-	ArchivedAt  *string  `json:"archivedAt"`
-	DeletedAt   *string  `json:"deletedAt,omitempty"`
-	Version     int64    `json:"version"`
-	CreatedAt   string   `json:"createdAt"`
-	UpdatedAt   string   `json:"updatedAt"`
+	ID         string   `json:"id"`
+	BoardID    string   `json:"boardId"`
+	ColumnID   string   `json:"columnId"`
+	Title      string   `json:"title"`
+	Position   string   `json:"position"`
+	LabelIDs   []string `json:"labelIds"`
+	StartAt    *string  `json:"startAt"` // "YYYY-MM-DD"
+	DueAt      *string  `json:"dueAt"`   // "YYYY-MM-DD", or a UTC timestamp when DueHasTime
+	DueHasTime bool     `json:"dueHasTime"`
+	// Checklist progress across all of the card's checklists. Only filled in
+	// on the board detail, for "2/5" on collapsed cards.
+	ChecklistDone  int64   `json:"checklistDone"`
+	ChecklistTotal int64   `json:"checklistTotal"`
+	CompletedAt    *string `json:"completedAt"`
+	ArchivedAt     *string `json:"archivedAt"`
+	DeletedAt      *string `json:"deletedAt,omitempty"`
+	Version        int64   `json:"version"`
+	CreatedAt      string  `json:"createdAt"`
+	UpdatedAt      string  `json:"updatedAt"`
 }
 
 // BoardView is the signed-in user's own view of a board (docs/DESIGN.md
@@ -271,11 +275,22 @@ func (s *Boards) Detail(ctx context.Context, userID, boardID string) (BoardDetai
 	for _, l := range links {
 		labelsByCard[l.CardID] = append(labelsByCard[l.CardID], l.LabelID)
 	}
+	counts, err := s.st.ChecklistCountsForBoard(ctx, boardID)
+	if err != nil {
+		return out, err
+	}
+	progress := make(map[string]db.ChecklistCountsForBoardRow, len(counts))
+	for _, c := range counts {
+		progress[c.CardID] = c
+	}
 	out.Cards = make([]Card, 0, len(cards))
 	for _, c := range cards {
 		card := cardFromRow(c)
 		if ids := labelsByCard[c.ID]; ids != nil {
 			card.LabelIDs = ids
+		}
+		if p, ok := progress[c.ID]; ok {
+			card.ChecklistDone, card.ChecklistTotal = p.Done, p.Total
 		}
 		out.Cards = append(out.Cards, card)
 	}
@@ -754,5 +769,13 @@ func PurgeTrash(ctx context.Context, st *store.Store, cutoff time.Time) (int64, 
 		return 0, err
 	}
 	n3, err := st.PurgeTrashedLabels(ctx, c)
-	return n1 + n2 + n3, err
+	if err != nil {
+		return 0, err
+	}
+	n4, err := st.PurgeTrashedChecklistItems(ctx, c)
+	if err != nil {
+		return 0, err
+	}
+	n5, err := st.PurgeTrashedChecklists(ctx, c)
+	return n1 + n2 + n3 + n4 + n5, err
 }
