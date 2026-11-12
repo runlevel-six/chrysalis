@@ -108,6 +108,10 @@ test("insert an image into a description; it's stored as an attachment", async (
   const editor = page.getByRole("textbox", { name: "Description for Illustrated" }).first();
   await editor.click();
   await page.keyboard.type("Here's the bed: ");
+  // Listen before acting: autosave can fire before slower checks finish.
+  const savedWithImage = page.waitForRequest(
+    (r) => r.url().endsWith("/description") && r.method() === "PUT" && /"src":"attachment:/.test(r.postData() ?? ""),
+  );
   const done = uploaded(page);
   await c.locator(".toolbar input[type=file]").setInputFiles({ name: "inline.png", mimeType: "image/png", buffer: PNG });
   await done;
@@ -115,8 +119,7 @@ test("insert an image into a description; it's stored as an attachment", async (
   await expect(img).toHaveAttribute("src", /^\/api\/v1\/attachments\/[0-9A-Z]{26}$/);
   await expect(attachmentsOf(c).getByRole("img", { name: "inline.png" })).toBeVisible();
 
-  const saved = page.waitForRequest((r) => r.url().endsWith("/description") && r.method() === "PUT");
-  const body = (await saved).postData() ?? "";
+  const body = (await savedWithImage).postData() ?? "";
   expect(body).toMatch(/"src":"attachment:[0-9A-Z]{26}"/); // stored by ID, not URL
   await page.reload();
   await expect(page.getByRole("textbox", { name: "Description for Illustrated" }).first().locator("img")).toBeVisible();
