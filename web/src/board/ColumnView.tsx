@@ -7,7 +7,7 @@ import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable"
 
 import type { Card, Column } from "../api";
 import { Icon } from "../ui";
-import { CardItem, TitleEditor, type CardActions } from "./CardItem";
+import { CardItem, TitleEditor, type CardActions, type CardContext } from "./CardItem";
 
 export function ColumnView({
   column,
@@ -16,6 +16,7 @@ export function ColumnView({
   readOnly,
   isExpanded,
   cardActions,
+  ctx,
   onToggleCollapsed,
   onRename,
   onOptions,
@@ -29,6 +30,7 @@ export function ColumnView({
   readOnly: boolean;
   isExpanded: (id: string) => boolean;
   cardActions: CardActions;
+  ctx: CardContext;
   onToggleCollapsed: () => void;
   onRename: (name: string) => void;
   onOptions: () => void;
@@ -48,7 +50,7 @@ export function ColumnView({
       <section className="column is-collapsed" aria-label={column.name} data-column-id={column.id} style={tint as never}>
         <button type="button" className="column-strip" aria-expanded={false} onClick={onToggleCollapsed}>
           <span className="column-strip-name">{column.name}</span>
-          <span className="column-count">{count}</span>
+          {!ctx.settings.hideColumnCount && <span className="column-count">{count}</span>}
         </button>
       </section>
     );
@@ -97,7 +99,7 @@ export function ColumnView({
       <SortableContext items={cards.map((c) => c.id)} strategy={verticalListSortingStrategy}>
         <div ref={setNodeRef} className="card-list">
           {cards.map((c) => (
-            <CardItem key={c.id} card={c} expanded={isExpanded(c.id)} readOnly={readOnly} actions={cardActions} />
+            <CardItem key={c.id} card={c} expanded={isExpanded(c.id)} readOnly={readOnly} actions={cardActions} ctx={ctx} />
           ))}
           {cards.length === 0 && !capturing && <p className="column-empty">Nothing here yet.</p>}
         </div>

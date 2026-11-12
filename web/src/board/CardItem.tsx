@@ -12,8 +12,9 @@ import { useEffect, useRef, useState, type KeyboardEvent, type MouseEventHandler
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
-import type { Card } from "../api";
-import { Icon } from "../ui";
+import type { BoardSettings, Card, Label } from "../api";
+import { Icon, Menu } from "../ui";
+import { CardMeta, DueText, LabelDots } from "./details";
 
 export type CardActions = {
   toggle: (card: Card) => void;
@@ -21,19 +22,27 @@ export type CardActions = {
   rename: (card: Card, title: string) => void;
   setCompleted: (card: Card, done: boolean) => void;
   moveTo: (card: Card) => void;
+  labels: (card: Card) => void;
+  dates: (card: Card) => void;
+  archive: (card: Card) => void;
   trash: (card: Card) => void;
 };
+
+/** What the board shares with every card: its labels and display settings. */
+export type CardContext = { labels: Label[]; settings: BoardSettings };
 
 export function CardItem({
   card,
   expanded,
   readOnly,
   actions,
+  ctx,
 }: {
   card: Card;
   expanded: boolean;
   readOnly: boolean;
   actions: CardActions;
+  ctx: CardContext;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: card.id,
@@ -129,17 +138,39 @@ export function CardItem({
           <Icon.Expand />
         </button>
       </div>
-      {expanded && !readOnly && (
-        <div className="card-actions">
-          <button type="button" className="text-button" onClick={() => actions.setCompleted(card, !done)}>
-            {done ? "Mark not done" : "Mark done"}
-          </button>
-          <button type="button" className="text-button" onClick={() => actions.moveTo(card)}>
-            Move to…
-          </button>
-          <button type="button" className="text-button" onClick={() => actions.trash(card)}>
-            Delete
-          </button>
+      {!expanded && (ctx.settings.showLabels || (ctx.settings.showDueDate && card.dueAt)) && (
+        // Optional extras on collapsed cards; all off by default (§3.2).
+        <div className="card-extras">
+          {ctx.settings.showLabels && <LabelDots labels={ctx.labels.filter((l) => card.labelIds.includes(l.id))} />}
+          {ctx.settings.showDueDate && <DueText card={card} />}
+        </div>
+      )}
+      {expanded && (
+        <div className="card-expanded">
+          <CardMeta card={card} labels={ctx.labels} />
+          {!readOnly && (
+            <div className="card-actions">
+              <button type="button" className="text-button" onClick={() => actions.setCompleted(card, !done)}>
+                {done ? "Mark not done" : "Mark done"}
+              </button>
+              <button type="button" className="text-button" onClick={() => actions.labels(card)}>
+                Labels…
+              </button>
+              <button type="button" className="text-button" onClick={() => actions.dates(card)}>
+                Dates…
+              </button>
+              {/* Less frequent actions stay out of the way (§3.6). */}
+              <Menu
+                label="More"
+                icon={<Icon.More />}
+                items={[
+                  { label: "Move to…", onSelect: () => actions.moveTo(card) },
+                  { label: "Archive", onSelect: () => actions.archive(card) },
+                  { label: "Delete", onSelect: () => actions.trash(card) },
+                ]}
+              />
+            </div>
+          )}
         </div>
       )}
     </div>

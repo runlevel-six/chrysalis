@@ -10,7 +10,18 @@ import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { generateKeyBetween } from "fractional-indexing";
 
-import { api, ApiError, type BoardDetail, type Card, type CardPatch, type Column, type ColumnPatch } from "../api";
+import {
+  api,
+  ApiError,
+  type BoardDetail,
+  type BoardSettings,
+  type Card,
+  type CardPatch,
+  type Column,
+  type ColumnPatch,
+  type Label,
+  type LabelColor,
+} from "../api";
 import { useUndo } from "../undo";
 
 export const detailKey = (boardId: string) => ["board", boardId, "detail"] as const;
@@ -77,7 +88,8 @@ export function useBoardActions(boardId: string) {
     if (!d) return;
     const position = keyBetween(lastPosition(d.cards.filter((c) => c.columnId === columnId)), null);
     const temp: Card = {
-      id: `tmp-${crypto.randomUUID()}`, boardId, columnId, title: title.trim(), position, completedAt: null,
+      id: `tmp-${crypto.randomUUID()}`, boardId, columnId, title: title.trim(), position, labelIds: [],
+      startAt: null, dueAt: null, dueHasTime: false, completedAt: null, archivedAt: null,
       version: 0, createdAt: "", updatedAt: "",
     };
     const created = await send(
@@ -97,24 +109,38 @@ export function useBoardActions(boardId: string) {
     if (p.columnId !== undefined) before.columnId = card.columnId;
     if (p.position !== undefined || p.columnId !== undefined) before.position = card.position;
     if (p.completed !== undefined) before.completed = card.completedAt !== null;
+    if (p.archived !== undefined) before.archived = card.archivedAt !== null;
+    if (p.labelIds !== undefined) before.labelIds = card.labelIds;
+    if (p.startAt !== undefined) before.startAt = card.startAt;
+    if (p.dueAt !== undefined || p.dueHasTime !== undefined) {
+      before.dueAt = card.dueAt;
+      before.dueHasTime = card.dueHasTime;
+    }
 
+    const now = new Date().toISOString();
     const local: Card = {
       ...card,
       ...(p.title !== undefined && { title: p.title.trim() }),
       ...(p.columnId !== undefined && { columnId: p.columnId }),
       ...(p.position !== undefined && { position: p.position }),
-      ...(p.completed !== undefined && { completedAt: p.completed ? new Date().toISOString() : null }),
+      ...(p.completed !== undefined && { completedAt: p.completed ? now : null }),
+      ...(p.archived !== undefined && { archivedAt: p.archived ? now : null }),
+      ...(p.labelIds !== undefined && { labelIds: p.labelIds }),
+      ...(p.startAt !== undefined && { startAt: p.startAt }),
+      ...(p.dueAt !== undefined && { dueAt: p.dueAt }),
+      ...(p.dueHasTime !== undefined && { dueHasTime: p.dueHasTime }),
     };
-    const movedAway = p.columnId !== undefined && !get()?.columns.some((c) => c.id === p.columnId);
+    const movedAway =
+      (p.columnId !== undefined && !get()?.columns.some((c) => c.id === p.columnId)) || p.archived === true;
     const updated = await send(
       () => (movedAway ? dropCard(card.id) : putCard(local)),
       () => api.updateCard(card.id, p),
-      (c) => (c.boardId === boardId ? putCard(c) : dropCard(c.id)),
+      (c) => (c.boardId === boardId && !c.archivedAt ? putCard(c) : dropCard(c.id)),
     );
     if (updated && label) {
       push(label, async () => {
         const back = await api.updateCard(card.id, before);
-        if (back.boardId === boardId) putCard(back);
+        if (back.boardId === boardId && !back.archivedAt) putCard(back);
         else void qc.invalidateQueries({ queryKey: key });
         if (updated.boardId !== boardId) void qc.invalidateQueries({ queryKey: detailKey(updated.boardId) });
       });
@@ -215,9 +241,64 @@ export function useBoardActions(boardId: string) {
     );
   };
 
+  // Labels
+
+  const putLabel = (l: Label) => patch((d) => ({ ...d, labels: [...d.labels.filter((x) => x.id !== l.id), l] }));
+
+  const createLabel = async (name: string, color: LabelColor) => {
+    const created = await send(() => {}, () => api.createLabel(boardId, name, color), putLabel);
+    return created;
+  };
+
+  const updateLabel = async (label: Label, p: { name?: string; color?: LabelColor }) => {
+    await send(() => putLabel({ ...label, ...p }), () => api.updateLabel(label.id, p), putLabel);
+  };
+
+  const trashLabel = async (label: Label) => {
+    const done = await send(
+      () => patch((d) => ({ ...d, labels: d.labels.filter((x) => x.id !== label.id) })),
+      () => api.trashLabel(label.id),
+      () => void qc.invalidateQueries({ queryKey: key }), // cards drop the label
+    );
+    if (done) {
+      push(`Deleted label “${label.name || label.color}”`, async () => {
+        await api.restoreLabel(label.id);
+        await qc.invalidateQueries({ queryKey: key });
+      });
+    }
+  };
+
+  // Board
+
+  const updateBoard = async (p: { name?: string; settings?: BoardSettings }, label?: string) => {
+    const d = get();
+    if (!d) return;
+    const before = { name: d.board.name, settings: d.board.settings };
+    const updated = await send(
+      () =>
+        patch((x) => ({
+          ...x,
+          board: { ...x.board, ...p },
+          view: p.settings ? { ...x.view, defaultCardState: p.settings.defaultCardState } : x.view,
+        })),
+      () => api.updateBoard(boardId, p),
+      (b) => {
+        patch((x) => ({ ...x, board: b }));
+        void qc.invalidateQueries({ queryKey: ["boards"] });
+      },
+    );
+    if (updated && label) {
+      push(label, async () => {
+        const b = await api.updateBoard(boardId, before);
+        patch((x) => ({ ...x, board: b }));
+      });
+    }
+  };
+
   return {
     addCard, updateCard, moveCard, trashCard, restoreCard,
     addColumn, updateColumn, trashColumn, restoreColumn,
+    createLabel, updateLabel, trashLabel, updateBoard,
   };
 }
 

@@ -10,12 +10,25 @@ export type Board = {
   name: string;
   icon: string;
   background: { type: "color" | "gradient" | "image"; value: string };
+  settings: BoardSettings;
   position: string;
   role: "owner" | "editor" | "viewer";
   version: number;
   createdAt: string;
   updatedAt: string;
 };
+
+export type BoardSettings = {
+  defaultCardState: "collapsed" | "expanded";
+  showLabels: boolean;
+  showDueDate: boolean;
+  showChecklist: boolean;
+  hideColumnCount: boolean;
+};
+
+export const LABEL_COLORS = ["green", "lime", "yellow", "orange", "red", "pink", "purple", "blue", "sky", "gray"] as const;
+export type LabelColor = (typeof LABEL_COLORS)[number];
+export type Label = { id: string; boardId: string; name: string; color: LabelColor; position: string; version: number };
 
 export type Column = {
   id: string;
@@ -37,7 +50,12 @@ export type Card = {
   columnId: string;
   title: string;
   position: string;
+  labelIds: string[];
+  startAt: string | null; // "YYYY-MM-DD"
+  dueAt: string | null; // "YYYY-MM-DD", or a UTC timestamp when dueHasTime
+  dueHasTime: boolean;
   completedAt: string | null;
+  archivedAt: string | null;
   deletedAt?: string;
   version: number;
   createdAt: string;
@@ -50,13 +68,23 @@ export type BoardView = {
   columns: Record<string, boolean>; // column id -> collapsed
 };
 
-export type BoardDetail = { board: Board; columns: Column[]; cards: Card[]; view: BoardView };
+export type BoardDetail = { board: Board; columns: Column[]; cards: Card[]; labels: Label[]; view: BoardView };
 export type Trash = { columns: Column[]; cards: Card[] };
 
 export type ColumnPatch = Partial<Pick<Column, "name" | "color" | "colorMode" | "isDone" | "position">> & {
   softLimit?: number; // 0 clears
 };
-export type CardPatch = { title?: string; columnId?: string; position?: string; completed?: boolean };
+export type CardPatch = {
+  title?: string;
+  columnId?: string;
+  position?: string;
+  completed?: boolean;
+  archived?: boolean;
+  labelIds?: string[];
+  startAt?: string | null; // null clears
+  dueAt?: string | null; // null clears
+  dueHasTime?: boolean;
+};
 
 export class ApiError extends Error {
   constructor(
@@ -109,4 +137,15 @@ export const api = {
   updateCard: (id: string, patch: CardPatch) => request<Card>("PATCH", `/cards/${encodeURIComponent(id)}`, patch),
   trashCard: (id: string) => request<Card>("DELETE", `/cards/${encodeURIComponent(id)}`),
   restoreCard: (id: string) => request<Card>("POST", `/cards/${encodeURIComponent(id)}/restore`),
+
+  updateBoard: (id: string, patch: { name?: string; settings?: BoardSettings }) =>
+    request<Board>("PATCH", `/boards/${encodeURIComponent(id)}`, patch),
+  archivedCards: (boardId: string) =>
+    request<{ cards: Card[] }>("GET", `/boards/${encodeURIComponent(boardId)}/archived`).then((r) => r.cards),
+  createLabel: (boardId: string, name: string, color: LabelColor) =>
+    request<Label>("POST", `/boards/${encodeURIComponent(boardId)}/labels`, { name, color }),
+  updateLabel: (id: string, patch: { name?: string; color?: LabelColor }) =>
+    request<Label>("PATCH", `/labels/${encodeURIComponent(id)}`, patch),
+  trashLabel: (id: string) => request<Label>("DELETE", `/labels/${encodeURIComponent(id)}`),
+  restoreLabel: (id: string) => request<Label>("POST", `/labels/${encodeURIComponent(id)}/restore`),
 };

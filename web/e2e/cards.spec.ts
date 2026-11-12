@@ -4,49 +4,9 @@
 // docs/DESIGN.md §9 required flows for columns and cards.
 
 import AxeBuilder from "@axe-core/playwright";
-import { devices, expect, test, type Locator, type Page } from "@playwright/test";
+import { devices, expect, test } from "@playwright/test";
 
-const unique = (label: string) => `${label} ${crypto.randomUUID().slice(0, 8)}`;
-
-/** Create a board with the given columns and open it. Returns its URL. */
-async function newBoard(page: Page, columns: string[]) {
-  await page.goto("/");
-  const name = unique("Board");
-  await page.getByLabel("New board").fill(name);
-  await page.getByLabel("New board").press("Enter");
-  await page.getByRole("link", { name, exact: true }).click();
-  await expect(page.getByRole("heading", { name, exact: true })).toBeVisible();
-  for (const col of columns) {
-    const add = page.getByRole("button", { name: "Add a column" });
-    if (await add.isVisible()) await add.click();
-    await page.getByLabel("New column name").fill(col);
-    await page.getByLabel("New column name").press("Enter");
-    await expect(column(page, col)).toBeVisible();
-  }
-  await page.getByLabel("New column name").press("Escape");
-  return page.url();
-}
-
-const column = (page: Page, name: string) => page.getByRole("region", { name, exact: true });
-const card = (scope: Page | Locator, title: string) => scope.getByRole("group", { name: title, exact: true });
-const cardTitles = (page: Page, col: string) => column(page, col).locator(".card-title").allTextContents();
-
-async function addCards(page: Page, col: string, titles: string[]) {
-  const c = column(page, col);
-  await c.getByRole("button", { name: "Add a card" }).click();
-  const input = c.getByLabel("New card title");
-  for (const t of titles) {
-    await input.fill(t);
-    await input.press("Enter");
-    await expect(card(c, t)).toBeVisible();
-  }
-  // Quick capture stays open for the next card (§3.6).
-  await expect(input).toBeFocused();
-  await input.press("Escape");
-}
-
-/** Wait until debounced view-state writes have reached the server. */
-const viewSaved = (page: Page) => page.waitForResponse((r) => r.url().endsWith("/view") && r.request().method() === "PUT");
+import { addCards, card, cardTitles, column, newBoard, viewSaved } from "./helpers";
 
 test("create columns and cards with quick capture", async ({ page }) => {
   await newBoard(page, ["To do", "Doing", "Done"]);
@@ -188,7 +148,8 @@ test("Move to… on a phone moves a card to another column", async ({ page }) =>
   await newBoard(page, ["Inbox", "Later"]);
   await addCards(page, "Inbox", ["Move me"]);
   await card(page, "Move me").getByRole("button", { name: "Expand card" }).click();
-  await card(page, "Move me").getByRole("button", { name: "Move to…" }).click();
+  await card(page, "Move me").getByRole("button", { name: "More" }).click();
+  await page.getByRole("menuitem", { name: "Move to…" }).click();
   await page.getByRole("dialog").getByRole("button", { name: "Later" }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await page.getByRole("navigation", { name: "Columns" }).getByRole("button", { name: "Later" }).click();
@@ -202,7 +163,8 @@ test("delete a card, then undo from the toast", async ({ page }) => {
   await newBoard(page, ["Col"]);
   await addCards(page, "Col", ["Keep", "Oops"]);
   await card(page, "Oops").getByRole("button", { name: "Expand card" }).click();
-  await card(page, "Oops").getByRole("button", { name: "Delete" }).click();
+  await card(page, "Oops").getByRole("button", { name: "More" }).click();
+  await page.getByRole("menuitem", { name: "Delete" }).click();
   await expect(card(page, "Oops")).toHaveCount(0);
   await expect(page.getByRole("status", { name: "Notifications" })).toContainText("Moved “Oops” to the trash");
   await page.getByRole("status", { name: "Notifications" }).getByRole("button", { name: "Undo" }).click();
@@ -220,7 +182,8 @@ test("delete a card, then restore it from the trash", async ({ page }) => {
   await deleted;
   await page.reload();
   await expect(card(page, "Recoverable")).toHaveCount(0);
-  await page.getByRole("button", { name: "Trash" }).click();
+  await page.getByRole("button", { name: "Board" }).click();
+  await page.getByRole("menuitem", { name: "Trash" }).click();
   const trash = page.getByRole("dialog", { name: "Trash" });
   await expect(trash).toContainText("Recoverable");
   await trash.getByRole("button", { name: "Restore" }).click();

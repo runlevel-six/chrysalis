@@ -21,9 +21,10 @@ import {
 import { arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 
 import { api, ApiError, type BoardDetail, type Card, type Column } from "../api";
-import { Dialog, Icon } from "../ui";
+import { Dialog, Icon, Menu } from "../ui";
+import { ArchivedDialog, BoardSettingsDialog, CardMeta, DatesDialog, LabelsDialog } from "./details";
 import { ColumnView } from "./ColumnView";
-import { TitleEditor, type CardActions } from "./CardItem";
+import { TitleEditor, type CardActions, type CardContext } from "./CardItem";
 import { byPosition, keyBetween, useBoardActions, useBoardDetail, useViewState } from "./useBoard";
 
 type Containers = Record<string, string[]>; // column id -> card ids, in display order
@@ -60,6 +61,10 @@ export function BoardPage({
   const [moveCardId, setMoveCardId] = useState<string | null>(null);
   const [optionsColumnId, setOptionsColumnId] = useState<string | null>(null);
   const [trashOpen, setTrashOpen] = useState(false);
+  const [archivedOpen, setArchivedOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [labelsCardId, setLabelsCardId] = useState<string | null>(null);
+  const [datesCardId, setDatesCardId] = useState<string | null>(null);
   const [capturingIn, setCapturingIn] = useState<string | null>(null);
   const lastColumn = useRef<string | null>(null);
 
@@ -115,8 +120,15 @@ export function BoardPage({
     setCompleted: (c, done) =>
       void actions.updateCard(c, { completed: done }, done ? `Marked “${c.title}” done` : `Marked “${c.title}” not done`),
     moveTo: (c) => setMoveCardId(c.id),
+    labels: (c) => setLabelsCardId(c.id),
+    dates: (c) => setDatesCardId(c.id),
+    archive: (c) => {
+      setFullCardId(null);
+      void actions.updateCard(c, { archived: true }, `Archived “${c.title}”`);
+    },
     trash: (c) => void actions.trashCard(c),
   };
+  const ctx: CardContext = { labels: [...d.labels].sort(byPosition), settings: d.board.settings };
 
   const columnName = (colId: string) => d.columns.find((c) => c.id === colId)?.name ?? "a column";
   const announcements: Announcements = {
@@ -187,9 +199,15 @@ export function BoardPage({
         <span className="save-state muted" aria-live="polite">
           {saving ? "Saving…" : "Saved"}
         </span>
-        <button type="button" className="text-button" onClick={() => setTrashOpen(true)}>
-          <Icon.Trash /> Trash
-        </button>
+        <Menu
+          label="Board"
+          icon={<Icon.More />}
+          items={[
+            ...(readOnly ? [] : [{ label: "Board settings", onSelect: () => setSettingsOpen(true) }]),
+            { label: "Archived cards", onSelect: () => setArchivedOpen(true) },
+            { label: "Trash", onSelect: () => setTrashOpen(true) },
+          ]}
+        />
       </div>
 
       {columns.length > 1 && (
@@ -240,6 +258,7 @@ export function BoardPage({
               readOnly={readOnly}
               isExpanded={view.isExpanded}
               cardActions={cardActions}
+              ctx={ctx}
               onToggleCollapsed={() => view.setCollapsed(col.id, !view.isCollapsed(col.id))}
               onRename={(name) => void actions.updateColumn(col, { name }, `Renamed column “${col.name}”`)}
               onOptions={() => setOptionsColumnId(col.id)}
@@ -264,7 +283,24 @@ export function BoardPage({
           column={d.columns.find((c) => c.id === fullCard.columnId)}
           readOnly={readOnly}
           actions={cardActions}
+          ctx={ctx}
           onClose={() => setFullCardId(null)}
+        />
+      )}
+      {labelsCardId && cardsById.get(labelsCardId) && (
+        <LabelsDialog card={cardsById.get(labelsCardId)!} labels={ctx.labels} actions={actions} onClose={() => setLabelsCardId(null)} />
+      )}
+      {datesCardId && cardsById.get(datesCardId) && (
+        <DatesDialog card={cardsById.get(datesCardId)!} actions={actions} onClose={() => setDatesCardId(null)} />
+      )}
+      {archivedOpen && <ArchivedDialog boardId={id} onClose={() => setArchivedOpen(false)} />}
+      {settingsOpen && (
+        <BoardSettingsDialog
+          name={d.board.name}
+          settings={d.board.settings}
+          labels={ctx.labels}
+          actions={actions}
+          onClose={() => setSettingsOpen(false)}
         />
       )}
       {moveCard && (
@@ -331,12 +367,14 @@ function CardFull({
   column,
   readOnly,
   actions,
+  ctx,
   onClose,
 }: {
   card: Card;
   column?: Column;
   readOnly: boolean;
   actions: CardActions;
+  ctx: CardContext;
   onClose: () => void;
 }) {
   const [editing, setEditing] = useState(false);
@@ -344,6 +382,7 @@ function CardFull({
   return (
     <Dialog open onClose={onClose} title={card.title} className="card-full">
       <p className="muted">In {column?.name ?? "a column"}</p>
+      <CardMeta card={card} labels={ctx.labels} />
       {editing ? (
         <TitleEditor
           initial={card.title}
@@ -364,8 +403,17 @@ function CardFull({
           <button type="button" className="text-button" onClick={() => actions.setCompleted(card, !done)}>
             <Icon.Check /> {done ? "Mark not done" : "Mark done"}
           </button>
+          <button type="button" className="text-button" onClick={() => actions.labels(card)}>
+            <Icon.Tag /> Labels…
+          </button>
+          <button type="button" className="text-button" onClick={() => actions.dates(card)}>
+            <Icon.Calendar /> Dates…
+          </button>
           <button type="button" className="text-button" onClick={() => actions.moveTo(card)}>
             Move to…
+          </button>
+          <button type="button" className="text-button" onClick={() => actions.archive(card)}>
+            Archive
           </button>
           <button
             type="button"
@@ -451,6 +499,7 @@ function ColumnOptions({
   onClose: () => void;
 }) {
   const [confirming, setConfirming] = useState(false);
+  const [isDone, setIsDone] = useState(column.isDone); // responds instantly; see BoardSettingsDialog
   const i = columns.findIndex((c) => c.id === column.id);
   const move = (dir: -1 | 1) => {
     // New position between the neighbors on the side we're moving to.
@@ -476,10 +525,12 @@ function ColumnOptions({
         <label className="check">
           <input
             type="checkbox"
-            checked={column.isDone}
-            onChange={(e) =>
-              void actions.updateColumn(column, { isDone: e.target.checked }, e.target.checked ? `“${column.name}” is now a done column` : `“${column.name}” is no longer a done column`)
-            }
+            checked={isDone}
+            onChange={(e) => {
+              const on = e.target.checked;
+              setIsDone(on);
+              void actions.updateColumn(column, { isDone: on }, on ? `“${column.name}” is now a done column` : `“${column.name}” is no longer a done column`);
+            }}
           />
           Cards here count as done
         </label>
