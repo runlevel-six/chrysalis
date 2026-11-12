@@ -56,6 +56,7 @@ type Card struct {
 	// Checklist progress across all of the card's checklists. Only filled in
 	// on the board detail, for "2/5" on collapsed cards.
 	ChecklistDone  int64   `json:"checklistDone"`
+	HasDescription bool    `json:"hasDescription"` // board detail only
 	ChecklistTotal int64   `json:"checklistTotal"`
 	CompletedAt    *string `json:"completedAt"`
 	ArchivedAt     *string `json:"archivedAt"`
@@ -283,9 +284,18 @@ func (s *Boards) Detail(ctx context.Context, userID, boardID string) (BoardDetai
 	for _, c := range counts {
 		progress[c.CardID] = c
 	}
+	described, err := s.st.ListCardsWithDescription(ctx, boardID)
+	if err != nil {
+		return out, err
+	}
+	hasDesc := make(map[string]bool, len(described))
+	for _, id := range described {
+		hasDesc[id] = true
+	}
 	out.Cards = make([]Card, 0, len(cards))
 	for _, c := range cards {
 		card := cardFromRow(c)
+		card.HasDescription = hasDesc[c.ID]
 		if ids := labelsByCard[c.ID]; ids != nil {
 			card.LabelIDs = ids
 		}

@@ -47,6 +47,14 @@ type Card struct {
 	DueHasTime  int64
 }
 
+type CardDescription struct {
+	CardID    string
+	DocJson   string
+	Version   int64
+	UpdatedAt string
+	UpdatedBy string
+}
+
 type CardLabel struct {
 	CardID  string
 	LabelID string

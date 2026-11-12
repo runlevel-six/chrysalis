@@ -4,6 +4,8 @@
 package api
 
 import (
+	"encoding/json"
+	"errors"
 	"net/http"
 
 	"github.com/runlevel-six/chrysalis/internal/auth"
@@ -28,6 +30,8 @@ func (s *server) registerContent(mux *http.ServeMux) {
 	mux.HandleFunc("PATCH /api/v1/labels/{id}", s.updateLabel)
 	mux.HandleFunc("DELETE /api/v1/labels/{id}", s.trashLabel(true))
 	mux.HandleFunc("POST /api/v1/labels/{id}/restore", s.trashLabel(false))
+	mux.HandleFunc("GET /api/v1/cards/{id}/description", s.getDescription)
+	mux.HandleFunc("PUT /api/v1/cards/{id}/description", s.setDescription)
 	mux.HandleFunc("GET /api/v1/cards/{id}/checklists", s.listChecklists)
 	mux.HandleFunc("POST /api/v1/cards/{id}/checklists", s.createChecklist)
 	mux.HandleFunc("PATCH /api/v1/checklists/{id}", s.updateChecklist)
@@ -303,4 +307,36 @@ func (s *server) trashCard(trashed bool) http.HandlerFunc {
 		}
 		writeJSON(w, http.StatusOK, c)
 	}
+}
+
+func (s *server) getDescription(w http.ResponseWriter, r *http.Request) {
+	d, err := s.boards.Description(r.Context(), userID(r), r.PathValue("id"))
+	if err != nil {
+		s.serviceError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, d)
+}
+
+// setDescription saves a card description with an optimistic version check:
+// 409 with the current description if someone else saved first (§5.5).
+func (s *server) setDescription(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Doc         json.RawMessage `json:"doc"`
+		BaseVersion int64           `json:"baseVersion"`
+	}
+	if !decodeJSON(w, r, &req) {
+		return
+	}
+	d, err := s.boards.SetDescription(r.Context(), userID(r), r.PathValue("id"), req.Doc, req.BaseVersion)
+	var conflict *service.ConflictError
+	if errors.As(err, &conflict) {
+		writeJSON(w, http.StatusConflict, map[string]any{"error": conflict.Error(), "current": conflict.Current})
+		return
+	}
+	if err != nil {
+		s.serviceError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, d)
 }
