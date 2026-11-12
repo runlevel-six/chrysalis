@@ -8,7 +8,7 @@
 // the arrow keys (M, Space or Enter drops; Esc cancels). Every shortcut also
 // has a visible button, and touch uses long-press to drag.
 
-import { useEffect, useRef, useState, type KeyboardEvent, type MouseEventHandler, type TouchEventHandler } from "react";
+import { lazy, Suspense, useEffect, useRef, useState, type KeyboardEvent, type MouseEventHandler, type TouchEventHandler } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
@@ -16,6 +16,9 @@ import type { BoardSettings, Card, Label } from "../api";
 import { Icon, Menu } from "../ui";
 import { CardMeta, DueText, LabelDots } from "./details";
 import { Checklists } from "./Checklists";
+
+// The editor is heavy; load it only when a description is first shown.
+export const LazyDescription = lazy(() => import("./Description"));
 
 export type CardActions = {
   toggle: (card: Card) => void;
@@ -93,7 +96,7 @@ export function CardItem({
       onTouchStart={(e) => !fromField(e.target) && (listeners?.onTouchStart as TouchEventHandler<HTMLDivElement> | undefined)?.(e)}
       onKeyDown={onKeyDown}
       onDoubleClick={(e) => {
-        if ((e.target as HTMLElement).closest("button, input, textarea")) return;
+        if ((e.target as HTMLElement).closest("button, input, textarea, [contenteditable]")) return;
         actions.openFull(card);
       }}
     >
@@ -154,6 +157,11 @@ export function CardItem({
       {expanded && (
         <div className="card-expanded">
           <CardMeta card={card} labels={ctx.labels} />
+          {(card.hasDescription || !readOnly) && (
+            <Suspense fallback={<p className="muted description-loading">Loading description…</p>}>
+              <LazyDescription card={card} readOnly={readOnly} compact />
+            </Suspense>
+          )}
           <Checklists card={card} readOnly={readOnly} />
           {!readOnly && (
             <div className="card-actions">

@@ -88,6 +88,11 @@ export const Icon = {
   Close: svg(<path d="M18 6 6 18M6 6l12 12" />),
   Check: svg(<path d="M20 6 9 17l-5-5" />),
   Trash: svg(<path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14" />),
+  Bold: svg(<path d="M7 5h6a3.5 3.5 0 0 1 0 7H7zM7 12h7a3.5 3.5 0 0 1 0 7H7z" />),
+  Italic: svg(<path d="M19 4h-9M14 20H5M15 4 9 20" />),
+  BulletList: svg(<path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01" />),
+  NumberedList: svg(<path d="M10 6h10M10 12h10M10 18h10M4 6h1v4M4 10h2M6 18H4c0-1 2-2 2-3s-1-1.5-2-1" />),
+  Link: svg(<path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7" />),
   Calendar: svg(
     <>
       <rect x="3" y="5" width="18" height="16" rx="2" />

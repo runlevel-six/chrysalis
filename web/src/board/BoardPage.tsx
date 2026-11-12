@@ -1,7 +1,7 @@
 // Copyright 2026 Jason Hall
 // SPDX-License-Identifier: Apache-2.0
 
-import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { useIsMutating, useQuery } from "@tanstack/react-query";
 import {
   DndContext,
@@ -25,7 +25,7 @@ import { Dialog, Icon, Menu } from "../ui";
 import { ArchivedDialog, BoardSettingsDialog, CardMeta, DatesDialog, LabelsDialog } from "./details";
 import { Checklists } from "./Checklists";
 import { ColumnView } from "./ColumnView";
-import { TitleEditor, type CardActions, type CardContext } from "./CardItem";
+import { LazyDescription, TitleEditor, type CardActions, type CardContext } from "./CardItem";
 import { byPosition, keyBetween, useBoardActions, useBoardDetail, useViewState } from "./useBoard";
 
 type Containers = Record<string, string[]>; // column id -> card ids, in display order
@@ -384,6 +384,9 @@ function CardFull({
     <Dialog open onClose={onClose} title={card.title} className="card-full">
       <p className="muted">In {column?.name ?? "a column"}</p>
       <CardMeta card={card} labels={ctx.labels} />
+      <Suspense fallback={<p className="muted description-loading">Loading description…</p>}>
+        <LazyDescription card={card} readOnly={readOnly} />
+      </Suspense>
       <Checklists card={card} readOnly={readOnly} />
       {editing ? (
         <TitleEditor

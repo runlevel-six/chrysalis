@@ -51,6 +51,9 @@ export const viewSaved = (page: Page) => page.waitForResponse((r) => r.url().end
 /** Expand a card if it isn't already (expanded state persists across reloads). */
 export async function expand(page: Page, title: string) {
   const c = card(page, title);
+  // Wait for the card first: isVisible() doesn't wait, so on a board that's
+  // still loading it would wrongly report "nothing to expand".
+  await expect(c.getByRole("button", { name: /^(Expand|Collapse) card$/ })).toBeVisible();
   if (await c.getByRole("button", { name: "Expand card" }).isVisible()) {
     await c.getByRole("button", { name: "Expand card" }).click();
   }

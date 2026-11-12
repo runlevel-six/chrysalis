@@ -978,3 +978,164 @@ select {
   align-items: center;
   gap: 0.25rem;
 }
+
+/* ---------- Descriptions ----------
+ * The editor's own CSS injection is off (the CSP blocks inline <style>), so
+ * the few rules ProseMirror needs live here. */
+
+.ProseMirror {
+  position: relative;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  font-variant-ligatures: none;
+  outline: none;
+}
+
+.ProseMirror-hideselection *::selection {
+  background: transparent;
+}
+
+.ProseMirror-gapcursor {
+  display: none;
+  pointer-events: none;
+  position: absolute;
+}
+
+.ProseMirror-focused .ProseMirror-gapcursor {
+  display: block;
+}
+
+.description-editor {
+  min-height: 3rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  line-height: 1.5;
+}
+
+.description-editor:focus-visible,
+.description-editor.ProseMirror-focused {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.description-editor.is-readonly {
+  background: none;
+}
+
+.description-editor p {
+  margin: 0 0 0.5rem;
+}
+
+.description-editor > :last-child {
+  margin-bottom: 0;
+}
+
+.description-editor h2 {
+  font-size: 1.125rem;
+  margin: 0.75rem 0 0.25rem;
+}
+
+.description-editor h3 {
+  font-size: 1rem;
+  margin: 0.75rem 0 0.25rem;
+}
+
+.description-editor ul,
+.description-editor ol {
+  margin: 0 0 0.5rem;
+  padding-left: 1.5rem;
+}
+
+.description-editor a {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.description-editor blockquote {
+  margin: 0 0 0.5rem;
+  padding-left: 0.75rem;
+  border-left: 3px solid var(--border);
+  color: var(--text-muted);
+}
+
+.description-editor code {
+  font-size: 0.875em;
+  padding: 0.1em 0.3em;
+  border-radius: 4px;
+  background: var(--hover);
+}
+
+.description-editor p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.description {
+  margin-bottom: 0.75rem;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.125rem;
+  margin-bottom: 0.25rem;
+}
+
+.tool {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 0.5rem;
+  background: none;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.tool:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+
+.tool.is-active {
+  background: var(--hover);
+  color: var(--text);
+}
+
+.link-form {
+  display: flex;
+  gap: 0.25rem;
+  flex: 1 1 100%;
+}
+
+.save-note {
+  min-height: 1.25rem;
+  margin: 0.25rem 0 0;
+  font-size: 0.8125rem;
+}
+
+.conflict {
+  margin-top: 0.5rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.conflict p {
+  margin-top: 0;
+}
+
+.conflict-theirs {
+  margin-top: 0.75rem;
+}
+
+.description-loading {
+  font-size: 0.875rem;
+}
+
+.description.is-compact .toolbar {
+  margin: 0.25rem 0 0;
+}

@@ -56,6 +56,7 @@ export type Card = {
   dueHasTime: boolean;
   checklistDone: number;
   checklistTotal: number;
+  hasDescription: boolean;
   completedAt: string | null;
   archivedAt: string | null;
   deletedAt?: string;
@@ -72,6 +73,9 @@ export type BoardView = {
 
 export type ChecklistItem = { id: string; checklistId: string; text: string; doneAt: string | null; position: string; version: number };
 export type Checklist = { id: string; cardId: string; title: string; position: string; items: ChecklistItem[]; version: number };
+
+/** ProseMirror JSON, or null when empty. */
+export type Description = { doc: unknown; version: number; updatedAt?: string };
 
 export type BoardDetail = { board: Board; columns: Column[]; cards: Card[]; labels: Label[]; view: BoardView };
 export type Trash = { columns: Column[]; cards: Card[] };
@@ -95,6 +99,8 @@ export class ApiError extends Error {
   constructor(
     readonly status: number,
     message: string,
+    /** The parsed JSON error body, e.g. the current description on a 409. */
+    readonly body?: unknown,
   ) {
     super(message);
   }
@@ -109,12 +115,14 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   });
   if (!res.ok) {
     let message = res.statusText;
+    let body: unknown;
     try {
-      message = ((await res.json()) as { error?: string }).error ?? message;
+      body = await res.json();
+      message = (body as { error?: string }).error ?? message;
     } catch {
       // not JSON; keep the status text
     }
-    throw new ApiError(res.status, message);
+    throw new ApiError(res.status, message, body);
   }
   if (res.status === 204) return undefined as T;
   return (await res.json()) as T;
@@ -153,6 +161,10 @@ export const api = {
     request<Label>("PATCH", `/labels/${encodeURIComponent(id)}`, patch),
   trashLabel: (id: string) => request<Label>("DELETE", `/labels/${encodeURIComponent(id)}`),
   restoreLabel: (id: string) => request<Label>("POST", `/labels/${encodeURIComponent(id)}/restore`),
+
+  description: (cardId: string) => request<Description>("GET", `/cards/${encodeURIComponent(cardId)}/description`),
+  setDescription: (cardId: string, doc: unknown, baseVersion: number) =>
+    request<Description>("PUT", `/cards/${encodeURIComponent(cardId)}/description`, { doc, baseVersion }),
 
   checklists: (cardId: string) =>
     request<{ checklists: Checklist[] }>("GET", `/cards/${encodeURIComponent(cardId)}/checklists`).then((r) => r.checklists),
