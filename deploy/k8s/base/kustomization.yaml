@@ -1,0 +1,23 @@
+# Generic base. Real deployments use an overlay that sets the namespace, base
+# URL, auth settings, storage class, ingress, and Secret.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+# Selectors are written out explicitly in each manifest. Letting Kustomize
+# inject them (includeSelectors) would also rewrite the ingress-controller
+# selector inside the NetworkPolicy.
+labels:
+  - pairs:
+      app.kubernetes.io/name: chrysalis
+    includeSelectors: false
+    includeTemplates: true
+resources:
+  - serviceaccount.yaml
+  - configmap.yaml
+  - pvc.yaml
+  - deployment.yaml
+  - service.yaml
+  - networkpolicy.yaml
+images:
+  - name: chrysalis
+    newName: ghcr.io/runlevel-six/chrysalis
+    newTag: latest

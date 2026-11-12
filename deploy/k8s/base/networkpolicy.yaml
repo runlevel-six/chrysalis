@@ -1,0 +1,35 @@
+# Only the ingress controller may reach the app (required for header auth
+# mode, docs/DESIGN.md §6.1; good practice for OIDC mode too). Overlays patch
+# the ingress controller's namespace and pod labels to match their cluster.
+#
+# Egress: DNS, plus HTTPS for the OIDC issuer. Header mode can drop the HTTPS
+# rule; add SMTP or S3 rules when those features are configured.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: chrysalis
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: chrysalis
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: ingress-nginx
+      ports:
+        - port: http
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - { port: 53, protocol: UDP }
+        - { port: 53, protocol: TCP }
+    - ports:
+        - { port: 443, protocol: TCP }

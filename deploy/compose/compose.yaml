@@ -1,0 +1,28 @@
+# Chrysalis with Docker Compose, using OIDC sign-in (the recommended mode).
+#
+#   cp .env.example .env   # then fill in your values
+#   docker compose up -d
+#
+# Put it behind a TLS-terminating reverse proxy; CHRYSALIS_BASE_URL must be
+# the https:// address people use. See docs/DESIGN.md §6 for auth modes.
+
+services:
+  chrysalis:
+    image: ghcr.io/runlevel-six/chrysalis:${CHRYSALIS_VERSION:-latest}
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "127.0.0.1:8080:8080" # only the local reverse proxy should reach this
+    volumes:
+      - chrysalis-data:/data
+    # Hardening: read-only root filesystem, no privileges, non-root user.
+    read_only: true
+    tmpfs:
+      - /tmp
+    user: "65532:65532"
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  chrysalis-data:

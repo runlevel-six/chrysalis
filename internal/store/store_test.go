@@ -42,7 +42,7 @@ func TestTimeFormatSortsLikeTime(t *testing.T) {
 	a := time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC)
 	b := a.Add(1500 * time.Millisecond)
 	c := a.Add(10 * time.Hour)
-	if !(FormatTime(a) < FormatTime(b) && FormatTime(b) < FormatTime(c)) {
+	if FormatTime(a) >= FormatTime(b) || FormatTime(b) >= FormatTime(c) {
 		t.Errorf("not ordered: %s %s %s", FormatTime(a), FormatTime(b), FormatTime(c))
 	}
 	// Non-UTC input is normalized.

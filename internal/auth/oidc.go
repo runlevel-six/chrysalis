@@ -124,6 +124,7 @@ type loginState struct {
 func (o *OIDCAuth) loginCookieName() string { return cookieName("chrysalis_login", o.secure) }
 
 func (o *OIDCAuth) setLoginCookie(w http.ResponseWriter, value string, maxAge int) {
+	//nolint:gosec // G124 false positive: Secure follows the base URL scheme (false only for plain-HTTP dev).
 	http.SetCookie(w, &http.Cookie{
 		Name:     o.loginCookieName(),
 		Value:    value,

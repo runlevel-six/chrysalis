@@ -1,0 +1,12 @@
+# Never send private or generated files to the build.
+local/
+.git/
+.env
+*.env.local
+data/
+bin/
+web/node_modules/
+web/dist/
+playwright-report/
+test-results/
+**/*.trace.zip

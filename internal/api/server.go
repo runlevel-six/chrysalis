@@ -8,6 +8,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/fs"
 	"log/slog"
@@ -143,7 +144,7 @@ func (s *server) recoverer(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if v := recover(); v != nil {
-				if v == http.ErrAbortHandler { // deliberate abort; let net/http handle it
+				if err, ok := v.(error); ok && errors.Is(err, http.ErrAbortHandler) { // deliberate abort; let net/http handle it
 					panic(v)
 				}
 				s.log.Error("panic", "value", v, "path", r.URL.Path, "stack", strings.TrimSpace(string(debug.Stack())))

@@ -1,0 +1,32 @@
+# Example: OIDC mode behind ingress-nginx. Copy this overlay (e.g. into the
+# gitignored local/deploy/k8s/) and replace every example value.
+#
+# Create the Secret yourself; it is never committed:
+#   kubectl -n chrysalis create secret generic chrysalis-secrets \
+#     --from-literal=CHRYSALIS_OIDC_CLIENT_SECRET=...
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: chrysalis
+resources:
+  - ../../base
+  - ingress.yaml
+images:
+  - name: ghcr.io/runlevel-six/chrysalis
+    newTag: latest # pin a release, e.g. 0.1.0
+patches:
+  - target: { kind: ConfigMap, name: chrysalis-config }
+    patch: |-
+      - op: add
+        path: /data/CHRYSALIS_BASE_URL
+        value: https://board.example.home
+      - op: add
+        path: /data/CHRYSALIS_OIDC_ISSUER
+        value: https://auth.example.com
+      - op: add
+        path: /data/CHRYSALIS_OIDC_CLIENT_ID
+        value: chrysalis
+  - target: { kind: PersistentVolumeClaim, name: chrysalis-data }
+    patch: |-
+      - op: add
+        path: /spec/storageClassName
+        value: example-rwo # your cluster's ReadWriteOnce storage class

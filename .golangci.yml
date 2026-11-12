@@ -1,0 +1,34 @@
+# golangci-lint v2 configuration.
+version: "2"
+linters:
+  default: standard
+  enable:
+    - bodyclose
+    - errorlint
+    - gosec
+    - misspell
+    - nilerr
+    - noctx
+    - sqlclosecheck
+    - unconvert
+  settings:
+    errcheck:
+      # A failed write to an HTTP response means the client went away;
+      # there's nothing useful to do with the error.
+      exclude-functions:
+        - fmt.Fprint
+        - fmt.Fprintf
+        - fmt.Fprintln
+        - (net/http.ResponseWriter).Write
+    gosec:
+      excludes:
+        - G104 # unchecked errors are already covered by errcheck
+  exclusions:
+    generated: strict
+    rules:
+      - path: _test\.go
+        linters: [gosec, noctx, errcheck, bodyclose]
+formatters:
+  enable:
+    - gofmt
+    - goimports

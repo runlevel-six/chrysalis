@@ -22,6 +22,9 @@ import (
 	"github.com/runlevel-six/chrysalis/web"
 )
 
+// version is set at build time with -ldflags "-X main.version=...".
+var version = "dev"
+
 func main() {
 	if err := run(); err != nil {
 		fmt.Fprintln(os.Stderr, "chrysalis:", err)
@@ -51,7 +54,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	defer st.Close()
+	defer func() { _ = st.Close() }()
 
 	authn := newAuthenticator(cfg, st, log)
 	go purgeExpiredSessions(ctx, st, log)
@@ -63,7 +66,7 @@ func run() error {
 	}
 	errc := make(chan error, 1)
 	go func() { errc <- srv.ListenAndServe() }()
-	log.Info("listening", "addr", cfg.ListenAddr, "base_url", cfg.BaseURL.String(), "auth_mode", cfg.AuthMode)
+	log.Info("listening", "version", version, "addr", cfg.ListenAddr, "base_url", cfg.BaseURL.String(), "auth_mode", cfg.AuthMode)
 
 	select {
 	case err := <-errc:

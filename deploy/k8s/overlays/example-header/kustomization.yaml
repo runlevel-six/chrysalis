@@ -1,0 +1,35 @@
+# Example: header (forward-auth) mode behind ingress-nginx with Authelia.
+# The ingress controller authenticates every request and passes Remote-*
+# headers; Chrysalis trusts them only from the ingress controller's pod
+# addresses, and the NetworkPolicy in the base blocks every other source.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: chrysalis
+resources:
+  - ../../base
+  - ingress.yaml
+images:
+  - name: ghcr.io/runlevel-six/chrysalis
+    newTag: latest # pin a release, e.g. 0.1.0
+patches:
+  - target: { kind: ConfigMap, name: chrysalis-config }
+    patch: |-
+      - op: replace
+        path: /data/CHRYSALIS_AUTH_MODE
+        value: header
+      - op: add
+        path: /data/CHRYSALIS_BASE_URL
+        value: https://board.example.home
+      - op: add
+        path: /data/CHRYSALIS_TRUSTED_PROXY_CIDRS
+        value: 10.42.0.0/16 # your cluster's pod CIDR, or the ingress pods' range
+  - target: { kind: PersistentVolumeClaim, name: chrysalis-data }
+    patch: |-
+      - op: add
+        path: /spec/storageClassName
+        value: example-rwo
+  # No OIDC issuer to call in header mode, so drop the HTTPS egress rule.
+  - target: { kind: NetworkPolicy, name: chrysalis }
+    patch: |-
+      - op: remove
+        path: /spec/egress/1

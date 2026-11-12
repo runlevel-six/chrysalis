@@ -1,0 +1,58 @@
+# REFERENCE ONLY: header (forward-auth) mode behind your own reverse proxy.
+#
+# In this mode the proxy authenticates people (for example with Authelia's
+# forward-auth endpoint) and passes Remote-User / Remote-Email / Remote-Name /
+# Remote-Groups headers. Chrysalis trusts those headers ONLY from
+# CHRYSALIS_TRUSTED_PROXY_CIDRS, so:
+#   - don't publish Chrysalis's port; only the proxy may reach it, and
+#   - give the proxy a fixed address on a dedicated network and trust just that.
+#
+# Example Caddyfile for the proxy, with Authelia:
+#
+#   board.example.home {
+#     forward_auth authelia:9091 {
+#       uri /api/authz/forward-auth
+#       copy_headers Remote-User Remote-Groups Remote-Email Remote-Name
+#     }
+#     reverse_proxy chrysalis:8080
+#   }
+
+services:
+  chrysalis:
+    image: ghcr.io/runlevel-six/chrysalis:${CHRYSALIS_VERSION:-latest}
+    restart: unless-stopped
+    environment:
+      CHRYSALIS_BASE_URL: https://board.example.home
+      CHRYSALIS_AUTH_MODE: header
+      CHRYSALIS_TRUSTED_PROXY_CIDRS: 172.30.0.2/32 # the proxy's fixed address below
+    volumes:
+      - chrysalis-data:/data
+    networks:
+      - backend
+    read_only: true
+    tmpfs:
+      - /tmp
+    user: "65532:65532"
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+
+  # Your reverse proxy (Caddy shown; any proxy with forward-auth works).
+  proxy:
+    image: caddy:2
+    ports:
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+    networks:
+      backend:
+        ipv4_address: 172.30.0.2
+
+networks:
+  backend:
+    ipam:
+      config:
+        - subnet: 172.30.0.0/24
+
+volumes:
+  chrysalis-data:

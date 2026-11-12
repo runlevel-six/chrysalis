@@ -58,6 +58,7 @@ func randomToken() string {
 }
 
 func (s *Sessions) setCookie(w http.ResponseWriter, value string, maxAge int) {
+	//nolint:gosec // G124 false positive: Secure follows the base URL scheme (false only for plain-HTTP dev).
 	http.SetCookie(w, &http.Cookie{
 		Name:     s.cookie,
 		Value:    value,
@@ -91,8 +92,11 @@ func (s *Sessions) Create(ctx context.Context, w http.ResponseWriter, r *http.Re
 // there's no cookie or the session is unknown or expired.
 func (s *Sessions) Lookup(ctx context.Context, w http.ResponseWriter, r *http.Request) (u User, ok bool, err error) {
 	c, err := r.Cookie(s.cookie)
-	if err != nil || c.Value == "" {
-		return User{}, false, nil
+	if errors.Is(err, http.ErrNoCookie) || (err == nil && c.Value == "") {
+		return User{}, false, nil // not signed in; not an error
+	}
+	if err != nil {
+		return User{}, false, err
 	}
 	id := hashToken(c.Value)
 	now := s.now()
@@ -120,8 +124,11 @@ func (s *Sessions) Lookup(ctx context.Context, w http.ResponseWriter, r *http.Re
 func (s *Sessions) Destroy(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
 	s.setCookie(w, "", -1)
 	c, err := r.Cookie(s.cookie)
-	if err != nil || c.Value == "" {
-		return nil
+	if errors.Is(err, http.ErrNoCookie) || (err == nil && c.Value == "") {
+		return nil // no session to end
+	}
+	if err != nil {
+		return err
 	}
 	return s.q.DeleteSession(ctx, hashToken(c.Value))
 }

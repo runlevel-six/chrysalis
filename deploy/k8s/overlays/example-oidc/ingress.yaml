@@ -1,0 +1,25 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: chrysalis
+  annotations:
+    # Live updates use server-sent events: don't buffer, allow long reads.
+    nginx.ingress.kubernetes.io/proxy-buffering: "off"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-body-size: 30m # uploads (default app limit 25 MB)
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts: [board.example.home]
+      secretName: chrysalis-tls
+  rules:
+    - host: board.example.home
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: chrysalis
+                port:
+                  name: http

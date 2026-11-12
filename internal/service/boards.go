@@ -94,8 +94,8 @@ func (s *Boards) Create(ctx context.Context, userID, name string) (Board, error)
 	if err != nil {
 		return Board{}, err
 	}
-	defer tx.Rollback() // no-op after Commit
-	q := s.st.Queries.WithTx(tx)
+	defer func() { _ = tx.Rollback() }() // no-op after Commit
+	q := s.st.WithTx(tx)
 
 	last, err := q.LastBoardPosition(ctx, userID)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {

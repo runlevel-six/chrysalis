@@ -72,7 +72,7 @@ func Open(ctx context.Context, path string) (*Store, error) {
 	sqlDB.SetMaxOpenConns(4)
 
 	if err := migrate(ctx, sqlDB); err != nil {
-		sqlDB.Close()
+		_ = sqlDB.Close()
 		return nil, err
 	}
 	return &Store{DB: sqlDB, Queries: db.New(sqlDB)}, nil

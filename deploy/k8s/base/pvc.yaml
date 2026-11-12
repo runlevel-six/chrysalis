@@ -1,0 +1,11 @@
+# SQLite and local attachments. ReadWriteOnce: there's exactly one writer.
+# Overlays set storageClassName for their cluster.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: chrysalis-data
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 2Gi
