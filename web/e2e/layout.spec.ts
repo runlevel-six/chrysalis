@@ -29,9 +29,12 @@ const widths = (page: import("@playwright/test").Page) =>
 test("columns grow on a wide screen, up to a comfortable maximum", async ({ page }) => {
   await page.setViewportSize({ width: 2560, height: 1440 });
   await boardWithChecklist(page);
+  // Four columns fill a wide desktop: the last one ends near the right edge.
+  const right = await page.locator(".column").last().evaluate((e) => e.getBoundingClientRect().right);
+  expect(right / 2560).toBeGreaterThan(0.85);
   for (const w of await widths(page)) {
     expect(w).toBeGreaterThan(400); // not stuck at a narrow fixed width
-    expect(w).toBeLessThanOrEqual(480); // 30rem: lines stay readable
+    expect(w).toBeLessThanOrEqual(640); // 40rem: lines stay readable
   }
 });
 
@@ -49,4 +52,35 @@ test("an expanded card's checklist text gets most of the card's width", async ({
   // Before the fix, nested indents left a sliver and words broke mid-word.
   expect(textWidth / cardWidth).toBeGreaterThan(0.4);
   await expect(card(page, "Plan the bed").locator(".checklist-text").first()).toHaveCSS("overflow-wrap", "break-word");
+});
+
+test("checklist controls line up with the first line of long items", async ({ page }) => {
+  await page.setViewportSize({ width: 1100, height: 800 });
+  const c = await boardWithChecklist(page);
+  const input = c.getByLabel("New checklist item");
+  if (!(await input.isVisible())) await c.getByRole("button", { name: "Add an item" }).click();
+  const long = "A really long task with an absurd name so we can see how it wraps across lines";
+  await c.getByLabel("New checklist item").fill(long);
+  await c.getByLabel("New checklist item").press("Enter");
+  const row = c.locator(".checklist-item").filter({ hasText: "absurd name" });
+  await expect(row).toBeVisible();
+
+  const m = await row.evaluate((li) => {
+    const text = li.querySelector(".checklist-text")!;
+    const range = document.createRange();
+    range.setStart(text.firstChild!, 0);
+    range.setEnd(text.firstChild!, 1);
+    const first = range.getBoundingClientRect(); // the first line
+    const mid = (r: DOMRect) => r.top + r.height / 2;
+    const box = li.querySelector("input[type=checkbox]")!.getBoundingClientRect();
+    const del = li.querySelector("button[aria-label^='Delete']")!.getBoundingClientRect();
+    return {
+      lines: Math.round(text.getBoundingClientRect().height / first.height),
+      checkbox: Math.abs(mid(box) - mid(first)),
+      remove: Math.abs(mid(del) - mid(first)),
+    };
+  });
+  expect(m.lines).toBeGreaterThan(1); // it really does wrap
+  expect(m.checkbox).toBeLessThan(3);
+  expect(m.remove).toBeLessThan(4);
 });

@@ -156,13 +156,8 @@ export function CardItem({
       )}
       {expanded && (
         <div className="card-expanded">
-          <CardMeta card={card} labels={ctx.labels} />
-          {(card.hasDescription || !readOnly) && (
-            <Suspense fallback={<p className="muted description-loading">Loading description…</p>}>
-              <LazyDescription card={card} readOnly={readOnly} compact />
-            </Suspense>
-          )}
-          <Checklists card={card} readOnly={readOnly} />
+          {/* Actions sit right under the title so they stay in reach however long
+              the description and checklists get. */}
           {!readOnly && (
             <div className="card-actions">
               <button type="button" className="text-button" onClick={() => actions.setCompleted(card, !done)}>
@@ -186,6 +181,13 @@ export function CardItem({
               />
             </div>
           )}
+          <CardMeta card={card} labels={ctx.labels} />
+          {(card.hasDescription || !readOnly) && (
+            <Suspense fallback={<p className="muted description-loading">Loading description…</p>}>
+              <LazyDescription card={card} readOnly={readOnly} compact />
+            </Suspense>
+          )}
+          <Checklists card={card} readOnly={readOnly} />
         </div>
       )}
     </div>
