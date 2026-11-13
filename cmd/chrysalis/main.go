@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // Command chrysalis runs the Chrysalis board server.
+//
+//	chrysalis [serve]          run the server (the default)
+//	chrysalis admin <command>  maintenance tasks such as backups; see admin.go
 package main
 
 import (
@@ -12,11 +15,13 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
 	"github.com/runlevel-six/chrysalis/internal/api"
 	"github.com/runlevel-six/chrysalis/internal/auth"
+	"github.com/runlevel-six/chrysalis/internal/backup"
 	"github.com/runlevel-six/chrysalis/internal/branding"
 	"github.com/runlevel-six/chrysalis/internal/config"
 	"github.com/runlevel-six/chrysalis/internal/service"
@@ -29,27 +34,34 @@ import (
 var version = "dev"
 
 func main() {
-	if err := run(); err != nil {
+	if err := run(os.Args[1:]); err != nil {
 		fmt.Fprintln(os.Stderr, "chrysalis:", err)
 		os.Exit(1)
 	}
 }
 
-func run() error {
-	if len(os.Args) > 1 && os.Args[1] != "serve" {
-		return fmt.Errorf("unknown command %q (usage: chrysalis [serve])", os.Args[1])
-	}
+func run(args []string) error {
+	// ctx is cancelled on SIGINT/SIGTERM (Kubernetes sends SIGTERM on shutdown).
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
 
+	switch {
+	case len(args) == 0 || (args[0] == "serve" && len(args) == 1):
+		return serve(ctx)
+	case args[0] == "admin":
+		return runAdmin(ctx, args[1:], os.Stdout, os.Stderr)
+	default:
+		return fmt.Errorf("unknown command %q (usage: chrysalis [serve] | chrysalis admin <command>)", strings.Join(args, " "))
+	}
+}
+
+func serve(ctx context.Context) error {
 	cfg, err := config.Load(os.Getenv)
 	if err != nil {
 		return fmt.Errorf("configuration:\n%w", err)
 	}
 	cfg.Version = version
 	log := newLogger(cfg.LogLevel)
-
-	// ctx is cancelled on SIGINT/SIGTERM (Kubernetes sends SIGTERM on shutdown).
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
 
 	if err := os.MkdirAll(cfg.DataDir, 0o750); err != nil {
 		return fmt.Errorf("create data dir: %w", err)
@@ -73,6 +85,9 @@ func run() error {
 	authn := newAuthenticator(cfg, st, log)
 	go purgeExpiredSessions(ctx, st, log)
 	go purgeTrash(ctx, st, files, cfg.TrashRetention, log)
+	if cfg.Backup.Schedule == "daily" {
+		go dailyBackups(ctx, st, cfg, log)
+	}
 
 	srv := &http.Server{
 		Addr: cfg.ListenAddr,
@@ -158,6 +173,35 @@ func purgeTrash(ctx context.Context, st *store.Store, files storage.Store, reten
 			log.Error("purge trash", "err", err)
 		} else if n > 0 {
 			log.Info("purged trash", "count", n)
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+		}
+	}
+}
+
+// dailyBackups backs up once per UTC day while the server runs
+// (CHRYSALIS_BACKUP_SCHEDULE=daily). It checks hourly whether today's backup
+// exists yet, so a restart neither skips a day nor makes a second one.
+func dailyBackups(ctx context.Context, st *store.Store, cfg *config.Config, log *slog.Logger) {
+	t := time.NewTicker(time.Hour)
+	defer t.Stop()
+	for {
+		due, err := backup.Due(cfg.Backup.Dir, time.Now())
+		if err != nil {
+			log.Error("check backups", "err", err)
+		} else if due {
+			b, removed, err := backup.Run(ctx, backup.Source{
+				DB: st.DB, AttachmentsDir: cfg.AttachmentsDir(), Version: cfg.Version,
+			}, backupPolicy(cfg), time.Now())
+			if err != nil && ctx.Err() == nil {
+				log.Error("backup", "err", err)
+			}
+			if b.Path != "" {
+				log.Info("backed up", "path", b.Path, "pruned", len(removed))
+			}
 		}
 		select {
 		case <-ctx.Done():

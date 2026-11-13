@@ -35,6 +35,8 @@ jobs:
           version: v2.15.0
           install-mode: goinstall # built with our Go toolchain
       - run: make test
+      - name: Tested restore (back up, restore into a fresh instance, compare)
+        run: scripts/restore-test.sh
       - run: make vuln
       - run: make licenses-go
 

@@ -39,6 +39,9 @@ type Config struct {
 	StorageBackend string
 	// BrandingDir optionally holds extra themes, an icon and a display name.
 	BrandingDir string
+	// Backup holds where backups go, how many to keep, and whether the
+	// server makes them itself (docs/DESIGN.md §7.4).
+	Backup Backup
 	// Version is the build's version (set by main from -ldflags, not the
 	// environment), shown in the app so it's easy to confirm what's deployed.
 	Version string
@@ -55,6 +58,18 @@ type OIDC struct {
 	RedirectURL   string
 	Scopes        []string
 	AllowedGroups []string // empty means any authenticated user
+}
+
+// Backup configures backups of the database and local attachments.
+type Backup struct {
+	// Dir holds one subdirectory per backup.
+	Dir string
+	// KeepDaily and KeepWeekly are how many of the newest days and ISO weeks
+	// (UTC) keep their newest backup when old ones are pruned.
+	KeepDaily, KeepWeekly int
+	// Schedule is "off" (back up only when asked, for example by a
+	// Kubernetes CronJob) or "daily" (the server backs itself up).
+	Schedule string
 }
 
 // Header holds the names of the headers a forward-auth proxy sets.
@@ -132,6 +147,20 @@ func Load(getenv func(string) string) (*Config, error) {
 	c.MaxUploadBytes = int64(mb) << 20
 
 	c.BrandingDir = env("BRANDING_DIR", "")
+
+	c.Backup.Dir = env("BACKUP_DIR", filepath.Join(c.DataDir, "backups"))
+	c.Backup.KeepDaily, err = strconv.Atoi(env("BACKUP_KEEP_DAILY", "7"))
+	if err != nil || c.Backup.KeepDaily < 1 {
+		errs = append(errs, errors.New("CHRYSALIS_BACKUP_KEEP_DAILY must be a whole number, at least 1"))
+	}
+	c.Backup.KeepWeekly, err = strconv.Atoi(env("BACKUP_KEEP_WEEKLY", "4"))
+	if err != nil || c.Backup.KeepWeekly < 0 {
+		errs = append(errs, errors.New("CHRYSALIS_BACKUP_KEEP_WEEKLY must be a whole number, 0 or more"))
+	}
+	c.Backup.Schedule = env("BACKUP_SCHEDULE", "off")
+	if c.Backup.Schedule != "off" && c.Backup.Schedule != "daily" {
+		errs = append(errs, fmt.Errorf("CHRYSALIS_BACKUP_SCHEDULE %q must be off or daily", c.Backup.Schedule))
+	}
 
 	c.StorageBackend = env("STORAGE_BACKEND", "local")
 	switch c.StorageBackend {

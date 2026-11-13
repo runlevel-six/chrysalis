@@ -46,3 +46,28 @@ startup and refuses to start, listing every problem, if any are invalid or incon
 | `CHRYSALIS_MAX_UPLOAD_MB` | `25` | Largest single attachment, 1 to 1024. |
 | `CHRYSALIS_STORAGE_BACKEND` | `local` | Where attachments are kept. Only `local` (under the data directory) is available today. |
 | `CHRYSALIS_TRASH_RETENTION_DAYS` | `30` | How long deleted boards, columns, cards, labels, checklists and attachments can be restored before they're permanently removed. |
+
+## Backups
+
+See [Back up and restore](../how-to/back-up-and-restore.md) for how to use these, and
+[How backups work](../explanation/backups.md) for why they work the way they do.
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `CHRYSALIS_BACKUP_SCHEDULE` | `off` | `daily`: the server backs itself up once per UTC day, checking hourly, and prunes old backups. `off`: backups happen only when you run `chrysalis admin backup` (by hand or from a Kubernetes CronJob). The Compose example and the Kubernetes base set `daily`. |
+| `CHRYSALIS_BACKUP_DIR` | `<data dir>/backups` | Where backups are written, one directory each, named like `chrysalis-20261112T030000Z`. |
+| `CHRYSALIS_BACKUP_KEEP_DAILY` | `7` | After each backup, keep the newest backup from each of this many most recent days that have one. At least 1. |
+| `CHRYSALIS_BACKUP_KEEP_WEEKLY` | `4` | Also keep the newest backup from each of this many most recent ISO weeks (Monday to Sunday, UTC) that have one. 0 or more. |
+
+## Commands
+
+The same binary runs the server and a few maintenance commands. In the container image it's `/chrysalis`.
+
+| Command | What it does |
+| --- | --- |
+| `chrysalis` or `chrysalis serve` | Runs the server. |
+| `chrysalis admin backup` | Makes one backup now, prints its path, then prunes old backups using the settings above. Safe while the server is running. |
+| `chrysalis admin list-backups` | Lists the backups in `CHRYSALIS_BACKUP_DIR`, newest first. |
+| `chrysalis admin restore <backup> [--force]` | Restores a backup into `CHRYSALIS_DATA_DIR`. `<backup>` is a name from `list-backups`, a path to a backup directory, or `latest`. Refuses if there's already a database or attachments, unless `--force`, which moves them into `pre-restore-<time>/` in the data directory rather than deleting them. Checks the backup's checksums and runs `PRAGMA integrity_check` before changing anything, and applies migrations afterwards. Stop the server first. |
+
+Commands read the same `CHRYSALIS_*` variables as the server, so run them with the server's environment.
