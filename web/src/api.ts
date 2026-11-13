@@ -30,6 +30,9 @@ export const LABEL_COLORS = ["green", "lime", "yellow", "orange", "red", "pink",
 export type LabelColor = (typeof LABEL_COLORS)[number];
 export type Label = { id: string; boardId: string; name: string; color: LabelColor; position: string; version: number };
 
+/** Starting columns for a new board (§3.12); offered, never forced. */
+export type BoardTemplate = "blank" | "simple" | "metamorphosis";
+
 export type Column = {
   id: string;
   boardId: string;
@@ -171,7 +174,7 @@ export const api = {
   me: () => request<User>("GET", "/me"),
   listBoards: () => request<{ boards: Board[] }>("GET", "/boards").then((r) => r.boards),
   getBoard: (id: string) => request<Board>("GET", `/boards/${encodeURIComponent(id)}`),
-  createBoard: (name: string) => request<Board>("POST", "/boards", { name }),
+  createBoard: (name: string, template: BoardTemplate = "blank") => request<Board>("POST", "/boards", { name, template }),
 
   boardDetail: (id: string) => request<BoardDetail>("GET", `/boards/${encodeURIComponent(id)}/detail`),
   boardTrash: (id: string) => request<Trash>("GET", `/boards/${encodeURIComponent(id)}/trash`),

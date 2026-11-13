@@ -25,13 +25,14 @@ func (s *server) listBoards(w http.ResponseWriter, r *http.Request) {
 
 func (s *server) createBoard(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Name string `json:"name"`
+		Name     string `json:"name"`
+		Template string `json:"template"` // blank (default) | simple | metamorphosis
 	}
 	if !decodeJSON(w, r, &req) {
 		return
 	}
 	u, _ := auth.UserFrom(r.Context())
-	b, err := s.boards.Create(r.Context(), u.ID, req.Name)
+	b, err := s.boards.Create(r.Context(), u.ID, req.Name, req.Template)
 	if err != nil {
 		s.serviceError(w, r, err)
 		return

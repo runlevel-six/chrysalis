@@ -97,3 +97,21 @@ for (const scheme of ["light", "dark"] as const) {
     await check();
   });
 }
+
+test("start a board from the Metamorphosis template", async ({ page }) => {
+  await gotoBoards(page);
+  const name = uniqueName("Metamorphosis");
+  await page.getByLabel("Egg, Caterpillar, Chrysalis, Imago").check();
+  await page.getByLabel("New board").fill(name);
+  await page.getByLabel("New board").press("Enter");
+  await page.getByRole("link", { name, exact: true }).click();
+  const columns = page.locator(".column-name");
+  await expect(columns).toHaveText(["Egg", "Caterpillar", "Chrysalis", "Imago"]);
+  // Imago is already a done column: its cards count as completed.
+  await page.getByRole("region", { name: "Imago" }).getByRole("button", { name: "Add a card" }).click();
+  await page.getByLabel("New card title").fill("Emerged");
+  await page.getByLabel("New card title").press("Enter");
+  await page.getByRole("button", { name: "View" }).click();
+  await page.getByRole("menuitem", { name: "Hide completed cards" }).click();
+  await expect(page.getByRole("group", { name: "Emerged" })).toHaveCount(0);
+});

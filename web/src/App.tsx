@@ -4,7 +4,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { api, ApiError, type Board } from "./api";
+import { api, ApiError, type Board, type BoardTemplate } from "./api";
 import markUrl from "./art/mark-small.svg";
 import emptyStateSvg from "./art/empty-state.svg?raw";
 import { Link, navigate, usePath } from "./router";
@@ -121,9 +121,10 @@ function BoardList() {
 function NewBoardForm() {
   const qc = useQueryClient();
   const [name, setName] = useState("");
+  const [template, setTemplate] = useState<BoardTemplate>("blank");
   const input = useRef<HTMLInputElement>(null);
   const create = useMutation({
-    mutationFn: api.createBoard,
+    mutationFn: (n: string) => api.createBoard(n, template),
     onSuccess: (board) => {
       qc.setQueryData<Board[]>(["boards"], (old) => [...(old ?? []), board]);
       setName("");
@@ -153,6 +154,21 @@ function NewBoardForm() {
           Create
         </button>
       </div>
+      <fieldset className="template-choice">
+        <legend>Start with</legend>
+        {(
+          [
+            ["blank", "An empty board"],
+            ["simple", "To do, Doing, Done"],
+            ["metamorphosis", "Egg, Caterpillar, Chrysalis, Imago"],
+          ] as const
+        ).map(([value, text]) => (
+          <label key={value} className="check">
+            <input type="radio" name="template" checked={template === value} onChange={() => setTemplate(value)} />
+            {text}
+          </label>
+        ))}
+      </fieldset>
       {create.error && (
         <p className="note" role="status">
           {create.error instanceof ApiError && create.error.status === 400

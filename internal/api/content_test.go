@@ -331,3 +331,38 @@ func TestMoveCardAcrossBoards(t *testing.T) {
 		t.Errorf("move into a viewed board: %d", w.Code)
 	}
 }
+
+func TestBoardTemplates(t *testing.T) {
+	m := newMultiUser(t, testStatic)
+	for tmpl, want := range map[string][]string{
+		"":              {},
+		"blank":         {},
+		"simple":        {"To do", "Doing", "Done"},
+		"metamorphosis": {"Egg", "Caterpillar", "Chrysalis", "Imago"},
+	} {
+		w := m.as("alice", "POST", "/api/v1/boards", `{"name":"T","template":"`+tmpl+`"}`)
+		if w.Code != http.StatusCreated {
+			t.Fatalf("%q: %d %s", tmpl, w.Code, w.Body)
+		}
+		b := decode[service.Board](t, w)
+		cols := m.detail("alice", b.ID).Columns
+		var names []string
+		for _, c := range cols {
+			names = append(names, c.Name)
+		}
+		if !eq(names, want) {
+			t.Errorf("%q columns = %v, want %v", tmpl, names, want)
+		}
+		if len(cols) > 0 && !cols[len(cols)-1].IsDone {
+			t.Errorf("%q: last column should be a done column", tmpl)
+		}
+		for _, c := range cols[:max(0, len(cols)-1)] {
+			if c.IsDone {
+				t.Errorf("%q: %s shouldn't be a done column", tmpl, c.Name)
+			}
+		}
+	}
+	if w := m.as("alice", "POST", "/api/v1/boards", `{"name":"T","template":"kanban9000"}`); w.Code != http.StatusBadRequest {
+		t.Errorf("unknown template: %d", w.Code)
+	}
+}

@@ -81,7 +81,32 @@ func NewBoards(st *store.Store, now func() time.Time) *Boards {
 }
 
 // Create makes a new board owned by userID, placed after their other boards.
-func (s *Boards) Create(ctx context.Context, userID, name string) (Board, error) {
+// Templates are starting columns offered when a board is created (§3.12),
+// never forced. Each entry is a column name and whether it's a done column.
+var Templates = map[string][]struct {
+	Name string
+	Done bool
+}{
+	"blank":  nil,
+	"simple": {{"To do", false}, {"Doing", false}, {"Done", true}},
+	// The app's namesake: a card's life from first idea to finished.
+	"metamorphosis": {{"Egg", false}, {"Caterpillar", false}, {"Chrysalis", false}, {"Imago", true}},
+}
+
+// Create makes a new board owned by userID, placed after their other
+// boards, with the columns of the named template ("" means blank).
+func (s *Boards) Create(ctx context.Context, userID, name string, template ...string) (Board, error) {
+	tmpl := ""
+	if len(template) > 0 {
+		tmpl = template[0]
+	}
+	if tmpl == "" {
+		tmpl = "blank"
+	}
+	cols, ok := Templates[tmpl]
+	if !ok {
+		return Board{}, &ValidationError{"template must be blank, simple or metamorphosis"}
+	}
 	name = strings.TrimSpace(name)
 	switch {
 	case name == "":
@@ -118,6 +143,26 @@ func (s *Boards) Create(ctx context.Context, userID, name string) (Board, error)
 	}
 	if err := q.AddBoardMember(ctx, db.AddBoardMemberParams{BoardID: row.ID, UserID: userID, Role: string(RoleOwner)}); err != nil {
 		return Board{}, err
+	}
+	colPos := ""
+	for _, c := range cols {
+		if colPos, err = order.KeyBetween(colPos, ""); err != nil {
+			return Board{}, err
+		}
+		col, err := q.CreateColumn(ctx, db.CreateColumnParams{
+			ID: ulid.Make().String(), BoardID: row.ID, Name: c.Name, Position: colPos, CreatedAt: now, UpdatedAt: now,
+		})
+		if err != nil {
+			return Board{}, err
+		}
+		if c.Done {
+			if _, err := q.UpdateColumn(ctx, db.UpdateColumnParams{
+				ID: col.ID, Name: col.Name, Color: col.Color, ColorMode: col.ColorMode, SoftLimit: col.SoftLimit,
+				IsDoneColumn: 1, Position: col.Position, UpdatedAt: now,
+			}); err != nil {
+				return Board{}, err
+			}
+		}
 	}
 	if err := tx.Commit(); err != nil {
 		return Board{}, err

@@ -1379,3 +1379,22 @@ select {
   font-size: 0.75rem;
   font-variant-numeric: tabular-nums;
 }
+
+.template-choice {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 1rem;
+  border: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+}
+
+.template-choice legend {
+  padding: 0;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+.template-choice .check {
+  padding: 0;
+}
