@@ -16,17 +16,17 @@ The examples assume the Compose service is called `chrysalis`, and that on Kuber
 CHRYSALIS_BACKUP_SCHEDULE=daily
 ```
 
-**Kubernetes:** the base already sets `CHRYSALIS_BACKUP_SCHEDULE: daily` in the `chrysalis-config` ConfigMap, so
-there's nothing to do. If you'd rather use a CronJob, add the optional component to your overlay:
+**Kubernetes:** the example overlays already include the backup CronJob. If you wrote your own overlay, add it:
 
 ```yaml
 components:
   - ../../components/backup-cronjob
 ```
 
-It turns the built-in schedule off and runs a backup at 03:00 UTC in a pod on the same node as Chrysalis, because the
-volume is ReadWriteOnce. [How backups work](../explanation/backups.md#the-built-in-schedule-or-a-cronjob) explains the
-trade-off.
+It runs a backup at 03:00 UTC in a pod on the same node as Chrysalis, because the volume is ReadWriteOnce, and turns
+the server's built-in schedule off. If you leave the component out, the server backs itself up once a day instead
+(the base sets `CHRYSALIS_BACKUP_SCHEDULE: daily`). [How backups work](../explanation/backups.md#the-built-in-schedule-or-a-cronjob)
+explains the trade-off.
 
 Either way, backups go to `/data/backups`. By default the newest from each of the last 7 days and each of the last 4
 weeks are kept, and older ones are deleted after each new backup.

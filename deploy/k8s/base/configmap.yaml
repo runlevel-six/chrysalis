@@ -8,8 +8,8 @@ data:
   CHRYSALIS_DATA_DIR: /data
   CHRYSALIS_LISTEN_ADDR: ":8080"
   CHRYSALIS_AUTH_MODE: oidc
-  # The server backs itself up once a day into /data/backups, keeping 7 daily
-  # and 4 weekly copies. It's already the volume's only writer, so this needs
-  # no second pod on the ReadWriteOnce volume. To use a CronJob instead, add
-  # ../../components/backup-cronjob to your overlay's components.
+  # Daily backups into /data/backups (7 daily and 4 weekly copies kept). The
+  # example overlays add ../../components/backup-cronjob, which runs them as a
+  # Kubernetes CronJob and turns this built-in schedule off. Without that
+  # component, the server backs itself up.
   CHRYSALIS_BACKUP_SCHEDULE: daily

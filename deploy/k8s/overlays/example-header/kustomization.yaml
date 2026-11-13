@@ -8,6 +8,9 @@ namespace: chrysalis
 resources:
   - ../../base
   - ingress.yaml
+# Daily backups as a Kubernetes CronJob (docs/how-to/back-up-and-restore.md).
+components:
+  - ../../components/backup-cronjob
 images:
   - name: ghcr.io/runlevel-six/chrysalis
     newTag: latest # pin a release, e.g. 0.1.0

@@ -42,19 +42,19 @@ fortnight doesn't come back and delete its last good copies. The newest backup i
 
 ## The built-in schedule, or a CronJob
 
-The design allows two ways to run scheduled backups: a Kubernetes CronJob, or a scheduler inside the server for people
-using Docker Compose. Chrysalis recommends the built-in scheduler on Kubernetes too, and offers the CronJob as an
-optional component.
+The design runs scheduled backups as a Kubernetes CronJob, or with a scheduler inside the server for people using
+Docker Compose. The example Kubernetes overlays use the CronJob. The built-in scheduler also works on Kubernetes, and
+it has one advantage worth knowing about.
 
-The reason is the volume. SQLite needs one writer, so the data lives on a ReadWriteOnce volume, which can be mounted
+It comes down to the volume. SQLite needs one writer, so the data lives on a ReadWriteOnce volume, which can be mounted
 by pods on only one node at a time. A CronJob's pod has to land on the same node as the server to mount it, which the
 component arranges with pod affinity. That works, but it adds a second pod that can fail to schedule (for example when
 the node is full), and a second process opening the database. The server already has the database open and already
-runs hourly maintenance, so checking once an hour whether today's backup exists is the simplest thing that's correct.
-It also means a restart never causes a missed day or a second backup.
+runs hourly maintenance, so checking once an hour whether today's backup exists is simple and correct, and a restart
+never causes a missed day or a second backup.
 
-The CronJob is still useful if you want backups to show up as Kubernetes jobs you can monitor and alert on, or to run
-at a set time. If your storage supports ReadWriteMany, you can drop its affinity.
+The CronJob's strengths are that backups show up as Kubernetes jobs you can monitor and alert on, and run at a set
+time. If your storage supports ReadWriteMany, you can drop its affinity.
 
 ## What a backup protects against
 

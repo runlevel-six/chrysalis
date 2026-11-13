@@ -1,5 +1,5 @@
-# OPTIONAL: back up with a Kubernetes CronJob instead of the server's built-in
-# daily schedule. Most clusters don't need this; see
+# Back up with a Kubernetes CronJob (docs/DESIGN.md §7.4) instead of the
+# server's built-in daily schedule. The example overlays include it; see
 # docs/how-to/back-up-and-restore.md for the trade-off.
 #
 # Add it to an overlay:
