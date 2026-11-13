@@ -16,6 +16,9 @@ const PREFS_TESTS = /(appearance|centering)\.spec\.ts/;
 export default defineConfig({
   testDir: "e2e",
   fullyParallel: true,
+  // Each worker is a browser plus its pages; on a laptop that also runs other
+  // things, a handful is plenty and keeps memory in check.
+  workers: process.env.CI ? undefined : 4,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [["github"], ["html", { open: "never" }]] : "list",
