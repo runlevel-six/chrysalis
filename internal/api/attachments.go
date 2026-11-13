@@ -18,6 +18,7 @@ func (s *server) registerAttachments(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/v1/cards/{id}/attachments", s.listAttachments)
 	mux.HandleFunc("POST /api/v1/cards/{id}/attachments", s.uploadAttachment)
 	mux.HandleFunc("POST /api/v1/cards/{id}/links", s.addLink)
+	mux.HandleFunc("POST /api/v1/boards/{id}/background", s.uploadBackground)
 	mux.HandleFunc("GET /api/v1/attachments/{id}", s.downloadAttachment)
 	mux.HandleFunc("DELETE /api/v1/attachments/{id}", s.trashAttachment(true))
 	mux.HandleFunc("POST /api/v1/attachments/{id}/restore", s.trashAttachment(false))
@@ -34,6 +35,21 @@ func (s *server) listAttachments(w http.ResponseWriter, r *http.Request) {
 
 // uploadAttachment takes one file in a multipart form field named "file".
 func (s *server) uploadAttachment(w http.ResponseWriter, r *http.Request) {
+	s.receiveFile(w, r, func(name string, data []byte) (any, error) {
+		return s.attachments.Upload(r.Context(), userID(r), r.PathValue("id"), name, data)
+	})
+}
+
+// uploadBackground takes an image for the board's background.
+func (s *server) uploadBackground(w http.ResponseWriter, r *http.Request) {
+	s.receiveFile(w, r, func(name string, data []byte) (any, error) {
+		return s.attachments.UploadBackground(r.Context(), userID(r), r.PathValue("id"), name, data)
+	})
+}
+
+// receiveFile reads the multipart field "file" (within the upload limit) and
+// hands it to store, answering 201 with what store returns.
+func (s *server) receiveFile(w http.ResponseWriter, r *http.Request, store func(name string, data []byte) (any, error)) {
 	limit := s.cfg.MaxUploadBytes
 	// Room for the multipart framing around the file itself.
 	r.Body = http.MaxBytesReader(w, r.Body, limit+64<<10)
@@ -70,12 +86,12 @@ func (s *server) uploadAttachment(w http.ResponseWriter, r *http.Request) {
 			auth.WriteError(w, http.StatusBadRequest, "couldn't read the upload")
 			return
 		}
-		att, err := s.attachments.Upload(r.Context(), userID(r), r.PathValue("id"), part.FileName(), data)
+		out, err := store(part.FileName(), data)
 		if err != nil {
 			s.serviceError(w, r, err)
 			return
 		}
-		writeJSON(w, http.StatusCreated, att)
+		writeJSON(w, http.StatusCreated, out)
 		return
 	}
 }

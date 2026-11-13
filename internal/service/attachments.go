@@ -127,6 +127,42 @@ func (a *Attachments) Upload(ctx context.Context, userID, cardID, filename strin
 	return attachmentFromRow(created), nil
 }
 
+// UploadBackground stores an image for a board's background. It's cleaned
+// like any upload and scaled to at most 2560 px on its longest edge
+// (§7.3). Anything that isn't an image is refused.
+func (a *Attachments) UploadBackground(ctx context.Context, userID, boardID, filename string, data []byte) (Attachment, error) {
+	if _, err := role(ctx, a.b.st.Queries, userID, boardID, true); err != nil {
+		return Attachment{}, err
+	}
+	img, err := media.Clean(data, 2560)
+	if errors.Is(err, media.ErrNotImage) {
+		return Attachment{}, &ValidationError{"A background has to be a photo or image (JPEG, PNG, GIF or WebP)."}
+	}
+	if err != nil {
+		return Attachment{}, &ValidationError{"That image is too large to use."}
+	}
+	id := ulid.Make().String()
+	row := db.CreateAttachmentParams{
+		ID: id, BoardID: boardID, UploaderID: userID, Kind: "image", Filename: cleanFilename(filename),
+		Mime: img.MIME, SizeBytes: int64(len(img.Data)), StorageKey: id, ThumbKey: id + ".thumb",
+		Width: int64(img.Width), Height: int64(img.Height), CreatedAt: store.FormatTime(a.b.now()),
+	}
+	if err := a.files.Put(ctx, row.StorageKey, img.Data); err != nil {
+		return Attachment{}, err
+	}
+	if err := a.files.Put(ctx, row.ThumbKey, img.Thumb); err != nil {
+		_ = a.files.Delete(ctx, row.StorageKey)
+		return Attachment{}, err
+	}
+	created, err := a.b.st.CreateAttachment(ctx, row)
+	if err != nil {
+		_ = a.files.Delete(ctx, row.StorageKey)
+		_ = a.files.Delete(ctx, row.ThumbKey)
+		return Attachment{}, err
+	}
+	return attachmentFromRow(created), nil
+}
+
 // AddLink attaches a web link to a card.
 func (a *Attachments) AddLink(ctx context.Context, userID, cardID, rawURL, title string) (Attachment, error) {
 	card, err := liveCard(ctx, a.b.st.Queries, userID, cardID, true)

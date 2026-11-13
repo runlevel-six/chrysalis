@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"regexp"
 	"slices"
 	"strings"
 	"unicode/utf8"
@@ -159,8 +160,39 @@ func parseSettings(raw string) BoardSettings {
 }
 
 type BoardPatch struct {
-	Name     *string        `json:"name"`
-	Settings *BoardSettings `json:"settings"`
+	Name       *string        `json:"name"`
+	Settings   *BoardSettings `json:"settings"`
+	Background *Background    `json:"background"`
+}
+
+// Gradients are the background presets (§3.5); the client maps each id to
+// its colors, so presets can be refined without touching stored boards.
+var Gradients = []string{"meadow", "dawn", "sky", "milkweed", "dusk"}
+
+var hexColor = regexp.MustCompile(`^#[0-9a-fA-F]{6}$`)
+
+// checkBackground validates a board background: "" (the theme's surface),
+// a #rrggbb color, a gradient preset, or one of this board's own images.
+func checkBackground(ctx context.Context, q *db.Queries, boardID string, bg Background) error {
+	switch bg.Type {
+	case "color":
+		if bg.Value != "" && !hexColor.MatchString(bg.Value) {
+			return &ValidationError{"Background colors look like #a1b2c3."}
+		}
+	case "gradient":
+		if !slices.Contains(Gradients, bg.Value) {
+			return &ValidationError{"Pick one of the background gradients."}
+		}
+	case "image":
+		a, err := q.GetAttachment(ctx, bg.Value)
+		if errors.Is(err, sql.ErrNoRows) || (err == nil && (a.BoardID != boardID || a.Kind != "image" || a.DeletedAt.Valid)) {
+			return &ValidationError{"That image isn't one of this board's."}
+		}
+		return err
+	default:
+		return &ValidationError{"background type must be color, gradient or image"}
+	}
+	return nil
 }
 
 func (s *Boards) UpdateBoard(ctx context.Context, userID, boardID string, p BoardPatch) (Board, error) {
@@ -190,8 +222,25 @@ func (s *Boards) UpdateBoard(ctx context.Context, userID, boardID string, p Boar
 		if err != nil {
 			return err
 		}
+		bgType, bgValue := b.Board.BackgroundType, b.Board.BackgroundValue
+		if p.Background != nil {
+			if err := checkBackground(ctx, q, boardID, *p.Background); err != nil {
+				return err
+			}
+			// A replaced background image goes to the trash, so the usual purge
+			// removes its file later instead of it being kept forever.
+			if bgType == "image" && (p.Background.Type != "image" || p.Background.Value != bgValue) {
+				if _, err := q.SetAttachmentDeleted(ctx, db.SetAttachmentDeletedParams{
+					ID: bgValue, DeletedAt: sql.NullString{String: store.FormatTime(s.now()), Valid: true},
+				}); err != nil && !errors.Is(err, sql.ErrNoRows) {
+					return err
+				}
+			}
+			bgType, bgValue = p.Background.Type, p.Background.Value
+		}
 		row, err := q.UpdateBoard(ctx, db.UpdateBoardParams{
-			ID: boardID, Name: name, SettingsJson: string(raw), UpdatedAt: store.FormatTime(s.now()),
+			ID: boardID, Name: name, SettingsJson: string(raw), BackgroundType: bgType, BackgroundValue: bgValue,
+			UpdatedAt: store.FormatTime(s.now()),
 		})
 		out = boardFromRow(row, string(r))
 		return err

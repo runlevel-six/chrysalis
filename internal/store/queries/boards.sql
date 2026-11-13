@@ -32,6 +32,7 @@ WHERE board_members.user_id = ?
   AND boards.deleted_at IS NULL;
 
 -- name: UpdateBoard :one
-UPDATE boards SET name = ?, settings_json = ?, updated_at = ?, version = version + 1
+UPDATE boards SET name = ?, settings_json = ?, background_type = ?, background_value = ?,
+    updated_at = ?, version = version + 1
 WHERE id = ?
 RETURNING *;

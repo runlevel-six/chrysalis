@@ -178,22 +178,27 @@ func (q *Queries) ListBoardsForUser(ctx context.Context, userID string) ([]ListB
 }
 
 const updateBoard = `-- name: UpdateBoard :one
-UPDATE boards SET name = ?, settings_json = ?, updated_at = ?, version = version + 1
+UPDATE boards SET name = ?, settings_json = ?, background_type = ?, background_value = ?,
+    updated_at = ?, version = version + 1
 WHERE id = ?
 RETURNING id, owner_id, name, icon, background_type, background_value, settings_json, position, archived_at, created_at, updated_at, deleted_at, version
 `
 
 type UpdateBoardParams struct {
-	Name         string
-	SettingsJson string
-	UpdatedAt    string
-	ID           string
+	Name            string
+	SettingsJson    string
+	BackgroundType  string
+	BackgroundValue string
+	UpdatedAt       string
+	ID              string
 }
 
 func (q *Queries) UpdateBoard(ctx context.Context, arg UpdateBoardParams) (Board, error) {
 	row := q.db.QueryRowContext(ctx, updateBoard,
 		arg.Name,
 		arg.SettingsJson,
+		arg.BackgroundType,
+		arg.BackgroundValue,
 		arg.UpdatedAt,
 		arg.ID,
 	)
