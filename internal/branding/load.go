@@ -49,6 +49,7 @@ func Load(dir string, log *slog.Logger) (Branding, error) {
 		return b, fmt.Errorf("branding: %s isn't a readable directory", dir)
 	}
 
+	//nolint:gosec // G304: the deployer's configured branding dir plus a fixed file name
 	if raw, err := os.ReadFile(filepath.Join(dir, "theme.json")); err == nil {
 		themes, err := parseThemes(raw)
 		if err != nil {
@@ -74,7 +75,7 @@ func Load(dir string, log *slog.Logger) (Branding, error) {
 	}
 
 	for _, f := range []struct{ name, mime string }{{"icon.svg", "image/svg+xml"}, {"icon.png", "image/png"}} {
-		raw, err := os.ReadFile(filepath.Join(dir, f.name))
+		raw, err := os.ReadFile(filepath.Join(dir, f.name)) //nolint:gosec // G304: configured dir, fixed name
 		if err == nil {
 			if len(raw) > 512<<10 {
 				log.Warn("branding: icon larger than 512 KB ignored", "file", f.name)
@@ -85,6 +86,7 @@ func Load(dir string, log *slog.Logger) (Branding, error) {
 		}
 	}
 
+	//nolint:gosec // G304: the deployer's configured branding dir plus a fixed file name
 	if raw, err := os.ReadFile(filepath.Join(dir, "display-name.txt")); err == nil {
 		name := strings.TrimSpace(string(raw))
 		if utf8.RuneCountInString(name) > 60 {

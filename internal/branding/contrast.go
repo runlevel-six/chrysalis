@@ -122,11 +122,12 @@ func ParseColor(s string) (RGB, error) {
 	if len(s) != 7 || s[0] != '#' {
 		return RGB{}, fmt.Errorf("not #rrggbb: %q", s)
 	}
-	v, err := strconv.ParseUint(s[1:], 16, 32)
+	v, err := strconv.ParseUint(s[1:], 16, 24) // six hex digits: fits in 24 bits
 	if err != nil {
 		return RGB{}, fmt.Errorf("not #rrggbb: %q", s)
 	}
-	return RGB{uint8(v >> 16), uint8(v >> 8), uint8(v)}, nil
+	//nolint:gosec // G115: each channel is masked to one byte on purpose
+	return RGB{uint8(v >> 16 & 0xff), uint8(v >> 8 & 0xff), uint8(v & 0xff)}, nil
 }
 
 func channel(c uint8) float64 {
