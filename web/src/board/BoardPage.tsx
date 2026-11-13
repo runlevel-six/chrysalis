@@ -22,6 +22,7 @@ import { arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 
 import { api, ApiError, type BoardDetail, type Card, type Column, type Focus, type Label } from "../api";
 import { Dialog, Icon, Menu } from "../ui";
+import { flutterFrom } from "../flutter";
 import { ArchivedDialog, BoardSettingsDialog, CardMeta, CoverBand, CoverDialog, DatesDialog, LabelChip, LabelsDialog } from "./details";
 import { Attachments } from "./Attachments";
 import { Checklists } from "./Checklists";
@@ -171,8 +172,10 @@ export function BoardPage({
     toggle: (c) => view.setExpanded([c.id], !view.isExpanded(c.id)),
     openFull: (c) => setFullCardId(c.id),
     rename: (c, title) => void actions.updateCard(c, { title }, `Renamed “${c.title}”`),
-    setCompleted: (c, done) =>
-      void actions.updateCard(c, { completed: done }, done ? `Marked “${c.title}” done` : `Marked “${c.title}” not done`),
+    setCompleted: (c, done) => {
+      if (done) flutterFrom(c.id, me.data?.prefs);
+      void actions.updateCard(c, { completed: done }, done ? `Marked “${c.title}” done` : `Marked “${c.title}” not done`);
+    },
     moveTo: (c) => setMoveCardId(c.id),
     labels: (c) => setLabelsCardId(c.id),
     dates: (c) => setDatesCardId(c.id),
@@ -191,6 +194,9 @@ export function BoardPage({
   };
 
   const columnName = (colId: string) => d.columns.find((c) => c.id === colId)?.name ?? "a column";
+  // Moving a card into a done column from one that isn't finishes it (§3.12).
+  const isDoneColumn = (colId: string) => !!d.columns.find((c) => c.id === colId)?.isDone;
+  const finishes = (card: Card, toColumn: string) => isDoneColumn(toColumn) && !isDoneColumn(card.columnId);
   const announcements: Announcements = {
     onDragStart: ({ active }) => `Picked up ${cardsById.get(String(active.id))?.title ?? "card"}. Use arrow keys to move, M or Space to drop, Escape to cancel.`,
     onDragOver: ({ active, over }) => {
@@ -244,6 +250,7 @@ export function BoardPage({
     // A new key between the neighbors it landed next to; only this card's row changes (§5.4).
     const before = i > 0 ? cardsById.get(ids[i - 1])?.position ?? null : null;
     const after = i < ids.length - 1 ? cardsById.get(ids[i + 1])?.position ?? null : null;
+    if (finishes(card, col)) flutterFrom(card.id, me.data?.prefs);
     void actions.moveCard(card, col, keyBetween(before, after));
   };
 
@@ -432,6 +439,7 @@ export function BoardPage({
           onMove={(columnId) => {
             setMoveCardId(null);
             setFullCardId(null);
+            if (finishes(moveCard, columnId)) flutterFrom(moveCard.id, me.data?.prefs);
             void actions.updateCard(moveCard, { columnId }, `Moved “${moveCard.title}”`);
           }}
           onClose={() => setMoveCardId(null)}

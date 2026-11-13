@@ -107,3 +107,43 @@ for (const scheme of ["light", "dark"] as const) {
     await expectAccessible(page, `settings (${scheme})`);
   });
 }
+
+// docs/DESIGN.md §9: complete a card and the flutter plays; with reduced
+// motion it doesn't.
+test("the completion flutter plays, and respects reduced motion and its setting", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await newBoard(page, ["To do", "Done"]);
+  await addCards(page, "To do", ["Water the bed", "Weed", "Mulch", "Prune"]);
+  const flutter = page.locator(".flutter");
+
+  await (await expand(page, "Water the bed")).getByRole("button", { name: "Mark done" }).click();
+  await expect(flutter).toHaveCount(1);
+  await expect(flutter).toHaveCount(0, { timeout: 2000 }); // gone on its own, quickly
+
+  // Reduced motion: no flutter.
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await (await expand(page, "Weed")).getByRole("button", { name: "Mark done" }).click();
+  await page.waitForTimeout(300);
+  await expect(flutter).toHaveCount(0);
+
+  // Switched off in Settings: no flutter even with motion allowed.
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await page.request.patch("/api/v1/me/prefs", { data: { ...DEFAULTS, completionFlutter: false } });
+  await page.reload();
+  await (await expand(page, "Mulch")).getByRole("button", { name: "Mark done" }).click();
+  await page.waitForTimeout(300);
+  await expect(flutter).toHaveCount(0);
+
+  // Moving a card into a done column counts as finishing it.
+  await page.request.patch("/api/v1/me/prefs", { data: DEFAULTS });
+  await page.reload();
+  await page.getByRole("button", { name: "Done options" }).click();
+  await page.getByRole("dialog").getByLabel("Cards here count as done").check();
+  await page.getByRole("dialog").getByRole("button", { name: "Close" }).click();
+  const c = await expand(page, "Prune");
+  await c.getByRole("button", { name: "More" }).click();
+  await page.getByRole("menuitem", { name: "Move to…" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Done" }).click();
+  await expect(flutter).toHaveCount(1);
+  await expect(card(page, "Prune")).toBeVisible();
+});
