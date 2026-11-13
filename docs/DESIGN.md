@@ -312,7 +312,7 @@ The motifs follow the calm-by-default rules (§3.6). Each one either sits still 
 - **App icon and favicon:** an original, simple butterfly mark. It can be replaced via branding.
 - **Empty states:** a soft line-art butterfly or flower with one gentle sentence, e.g. "A fresh start. Add your first card." on an empty board.
 - **Completion flutter:**
-  - when a card is marked complete or dropped into a done column, a small butterfly lifts off the card and fades out (≤600 ms);
+  - when a card is marked complete or dropped into a done column, a small butterfly lifts off the card (where it landed, for a move) and drifts up as it fades out (about 1.2 s; the maintainer lengthened it from ≤600 ms so it can be enjoyed);
   - it's off under reduced motion, and has its own settings toggle;
   - it never plays for bulk actions or imports.
 - **Background presets** for Butterfly Garden: a few soft gradients and subtle botanical SVG patterns (low contrast, so text stays readable). The empty "choose background" panel invites uploading the user's own photos (§3.5).

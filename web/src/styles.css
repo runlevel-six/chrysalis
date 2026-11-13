@@ -1566,7 +1566,7 @@ select {
   width: 28px;
   height: 28px;
   pointer-events: none;
-  animation: flutter-rise 600ms ease-out forwards;
+  animation: flutter-rise 1200ms ease-out forwards;
 }
 
 .flutter svg {
@@ -1577,7 +1577,7 @@ select {
 
 .flutter .wing-left,
 .flutter .wing-right {
-  animation: flutter-flap 150ms ease-in-out 4 alternate;
+  animation: flutter-flap 150ms ease-in-out 8 alternate;
 }
 
 .flutter .wing-left {
@@ -1593,12 +1593,18 @@ select {
     opacity: 0;
     transform: translate(0, 0) scale(0.7);
   }
-  20% {
+  12% {
     opacity: 1;
+  }
+  50% {
+    transform: translate(22px, -46px) scale(1);
+  }
+  75% {
+    opacity: 0.9;
   }
   100% {
     opacity: 0;
-    transform: translate(14px, -46px) scale(1);
+    transform: translate(12px, -92px) scale(1);
   }
 }
 

@@ -217,3 +217,20 @@ test("no serious accessibility issues on a board with cards", async ({ page }) =
     expect(bad.map((v) => `${scheme} ${v.id}: ${v.help} (${v.nodes.map((n) => n.target).join(", ")})`)).toEqual([]);
   }
 });
+
+test("move a card up and down from its menu and with Alt+arrow keys", async ({ page, isMobile }) => {
+  await newBoard(page, ["List"]);
+  await addCards(page, "List", ["First", "Second", "Third"]);
+  const third = card(page, "Third");
+  await third.getByRole("button", { name: "Expand card" }).click();
+  await third.getByRole("button", { name: "More" }).click();
+  await page.getByRole("menuitem", { name: "Move up" }).click();
+  await expect.poll(() => cardTitles(page, "List")).toEqual(["First", "Third", "Second"]);
+  await page.reload();
+  await expect.poll(() => cardTitles(page, "List")).toEqual(["First", "Third", "Second"]);
+  if (isMobile) return; // the rest is keyboard
+  await card(page, "First").focus();
+  await page.keyboard.press("Alt+ArrowDown");
+  await expect.poll(() => cardTitles(page, "List")).toEqual(["Third", "First", "Second"]);
+  await expect(card(page, "First")).toBeFocused();
+});

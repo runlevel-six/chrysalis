@@ -22,7 +22,7 @@ import { arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 
 import { api, ApiError, LABEL_COLORS, type BoardDetail, type Card, type Column, type Focus, type Label } from "../api";
 import { Dialog, Icon, Menu } from "../ui";
-import { flutterFrom } from "../flutter";
+import { flutterAfterMove, flutterFrom } from "../flutter";
 import { backgroundStyle } from "./backgrounds";
 import { holdSync } from "../live";
 import { useOffline } from "../offline";
@@ -238,6 +238,22 @@ export function BoardPage({
       void actions.updateCard(c, { completed: done }, done ? `Marked “${c.title}” done` : `Marked “${c.title}” not done`);
     },
     moveTo: (c) => setMoveCardId(c.id),
+    canMoveBy: (c, dir) => {
+      const ids = containersOf(d)[c.columnId] ?? [];
+      const j = ids.indexOf(c.id) + dir;
+      return !readOnly && j >= 0 && j < ids.length;
+    },
+    moveBy: (c, dir) => {
+      const ids = containersOf(d)[c.columnId] ?? [];
+      const j = ids.indexOf(c.id) + dir;
+      if (j < 0 || j >= ids.length) return;
+      // Between the card it passes and that card's other neighbour.
+      const pos = (k: number) => (k >= 0 && k < ids.length ? (cardsById.get(ids[k])?.position ?? null) : null);
+      const [before, after] = dir < 0 ? [pos(j - 1), pos(j)] : [pos(j), pos(j + 1)];
+      void actions.moveCard(c, c.columnId, keyBetween(before, after));
+      // Moving reorders the DOM; keep the keyboard where the person is.
+      requestAnimationFrame(() => document.querySelector<HTMLElement>(`[data-card-id="${CSS.escape(c.id)}"]`)?.focus());
+    },
     labels: (c) => setLabelsCardId(c.id),
     dates: (c) => setDatesCardId(c.id),
     cover: (c) => setCoverCardId(c.id),
@@ -325,8 +341,8 @@ export function BoardPage({
     // A new key between the neighbors it landed next to; only this card's row changes (§5.4).
     const before = i > 0 ? cardsById.get(ids[i - 1])?.position ?? null : null;
     const after = i < ids.length - 1 ? cardsById.get(ids[i + 1])?.position ?? null : null;
-    if (finishes(card, col)) flutterFrom(card.id, me.data?.prefs);
     void actions.moveCard(card, col, keyBetween(before, after));
+    if (finishes(card, col)) flutterAfterMove(card.id, me.data?.prefs);
   };
 
   const activeCard = activeId ? cardsById.get(activeId) : undefined;
@@ -537,8 +553,8 @@ export function BoardPage({
           onMove={(columnId) => {
             setMoveCardId(null);
             setFullCardId(null);
-            if (finishes(moveCard, columnId)) flutterFrom(moveCard.id, me.data?.prefs);
             void actions.updateCard(moveCard, { columnId }, `Moved “${moveCard.title}”`);
+            if (finishes(moveCard, columnId)) flutterAfterMove(moveCard.id, me.data?.prefs);
           }}
           onClose={() => setMoveCardId(null)}
         />
@@ -651,6 +667,16 @@ function CardFull({
           <button type="button" className="text-button" onClick={() => actions.cover(card)}>
             Cover…
           </button>
+          {actions.canMoveBy(card, -1) && (
+            <button type="button" className="text-button" onClick={() => actions.moveBy(card, -1)}>
+              Move up
+            </button>
+          )}
+          {actions.canMoveBy(card, 1) && (
+            <button type="button" className="text-button" onClick={() => actions.moveBy(card, 1)}>
+              Move down
+            </button>
+          )}
           <button type="button" className="text-button" onClick={() => actions.moveTo(card)}>
             Move to…
           </button>
@@ -1025,6 +1051,7 @@ const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigat
 const SHORTCUTS: [string, string][] = [
   ["N", "New card in the column you're in"],
   ["M", "Pick up the focused card; arrows move it, M drops it"],
+  [isMac ? "⌥ ↑ / ↓" : "Alt ↑ / ↓", "Move the focused card up or down in its column"],
   ["Space", "Expand or collapse the focused card"],
   ["Enter", "Open the focused card in full"],
   ["E", "Edit the focused card's title"],

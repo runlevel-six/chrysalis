@@ -27,6 +27,9 @@ export type CardActions = {
   rename: (card: Card, title: string) => void;
   setCompleted: (card: Card, done: boolean) => void;
   moveTo: (card: Card) => void;
+  /** Move one place up (-1) or down (1) in its column; false if it can't. */
+  canMoveBy: (card: Card, dir: -1 | 1) => boolean;
+  moveBy: (card: Card, dir: -1 | 1) => void;
   labels: (card: Card) => void;
   dates: (card: Card) => void;
   cover: (card: Card) => void;
@@ -70,6 +73,11 @@ export function CardItem({
     } else if (e.key === "Enter") {
       e.preventDefault();
       actions.openFull(card);
+    } else if (e.altKey && (e.key === "ArrowUp" || e.key === "ArrowDown") && !readOnly) {
+      // Alt+↑/↓: one place up or down in the column, keeping focus here.
+      e.preventDefault();
+      const dir = e.key === "ArrowUp" ? -1 : 1;
+      if (actions.canMoveBy(card, dir)) actions.moveBy(card, dir);
     } else if ((e.key === "e" || e.key === "E") && !readOnly && !e.metaKey && !e.ctrlKey) {
       e.preventDefault();
       if (!expanded) actions.toggle(card);
@@ -183,6 +191,8 @@ export function CardItem({
                 icon={<Icon.More />}
                 items={[
                   { label: "Cover…", onSelect: () => actions.cover(card) },
+                  ...(actions.canMoveBy(card, -1) ? [{ label: "Move up", onSelect: () => actions.moveBy(card, -1) }] : []),
+                  ...(actions.canMoveBy(card, 1) ? [{ label: "Move down", onSelect: () => actions.moveBy(card, 1) }] : []),
                   { label: "Move to…", onSelect: () => actions.moveTo(card) },
                   { label: "Archive", onSelect: () => actions.archive(card) },
                   { label: "Delete", onSelect: () => actions.trash(card) },
