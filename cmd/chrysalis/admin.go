@@ -39,6 +39,7 @@ var adminCommands = []adminCommand{
 	{"backup", "", "Back up the database and attachments now, then prune old backups", adminBackup},
 	{"list-backups", "", "List backups, newest first", adminListBackups},
 	{"restore", "<backup> [--force]", "Restore a backup into the data directory (stop the server first)", adminRestore},
+	{"quotes", "import --user <email> [--collection <name>] [--replace] <file>", "Import centering-line entries from a YAML or JSON file", adminQuotes},
 }
 
 func adminUsage(w io.Writer) {

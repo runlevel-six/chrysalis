@@ -33,6 +33,8 @@ import { Checklists } from "./Checklists";
 import { ColumnView } from "./ColumnView";
 import { LazyDescription, TitleEditor, type CardActions, type CardContext } from "./CardItem";
 import { byPosition, keyBetween, useBoardActions, useBoardDetail, useViewState } from "./useBoard";
+import { CenteringLine } from "./CenteringLine";
+import { useCenteringLine } from "../centering";
 
 type Containers = Record<string, string[]>; // column id -> card ids, in display order
 
@@ -65,6 +67,9 @@ export function BoardPage({
   const actions = useBoardActions(id);
   const view = useViewState(id, d);
   const saving = useIsMutating() > 0;
+  // The centering line (§3.13): the person's own setting, with this board's
+  // override on top.
+  const centeringOn = !!useCenteringLine().data?.enabled;
 
   const [fullCardId, setFullCardId] = useState<string | null>(null);
   const [moveCardId, setMoveCardId] = useState<string | null>(null);
@@ -308,6 +313,14 @@ export function BoardPage({
               onSelect: () => view.setHideCompleted(!view.hideCompleted),
             },
             { label: "Filter cards…", onSelect: () => setFilterOpen(true) },
+            ...(centeringOn
+              ? [
+                  {
+                    label: view.centeringLine === false ? "Show the centering line here" : "Hide the centering line here",
+                    onSelect: () => view.setCenteringLine(view.centeringLine === false),
+                  },
+                ]
+              : []),
           ]}
         />
         <Menu
@@ -320,6 +333,7 @@ export function BoardPage({
           ]}
         />
       </div>
+      {centeringOn && view.centeringLine !== false && <CenteringLine />}
 
       {columns.length > 1 && (
         <nav className="column-tabs" aria-label="Columns">
@@ -450,6 +464,7 @@ export function BoardPage({
           background={d.board.background}
           labels={ctx.labels}
           actions={actions}
+          centeringLine={centeringOn ? { show: view.centeringLine !== false, set: view.setCenteringLine } : undefined}
           onClose={() => setSettingsOpen(false)}
         />
       )}

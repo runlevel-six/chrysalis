@@ -11,6 +11,7 @@ import { Link, navigate, usePath } from "./router";
 import { BoardPage } from "./board/BoardPage";
 import { BoardDrawers, BoardTile } from "./Boards";
 import { rememberReturn, SettingsPage, useBrandingThemes } from "./Settings";
+import { CenteringPage } from "./CenteringSettings";
 import { applyAppearance, DEFAULT_PREFS, watchSystem } from "./appearance";
 import { Dialog, Icon } from "./ui";
 import { useLiveSync } from "./live";
@@ -79,6 +80,7 @@ export function App() {
   let page;
   if (path === "/") page = <BoardList />;
   else if (path === "/settings") page = <SettingsPage />;
+  else if (path === "/settings/centering") page = <CenteringPage />;
   else if (boardMatch)
     page = (
       <BoardPage

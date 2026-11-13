@@ -10,6 +10,7 @@ import { api, type User } from "./api";
 import { BUILT_IN_THEMES, DEFAULT_PREFS, type Prefs, type Theme } from "./appearance";
 import { useUndo } from "./undo";
 import { Link, navigate } from "./router";
+import { CenteringSection } from "./CenteringSettings";
 
 export function useBrandingThemes(): Theme[] {
   const b = useQuery({ queryKey: ["branding"], queryFn: api.branding, staleTime: Infinity });
@@ -70,7 +71,7 @@ function Choice<T extends string>({
 // reload), so "Back" returns to the same board.
 const RETURN = "chrysalis.settingsReturn";
 export const rememberReturn = () => {
-  if (window.location.pathname === "/settings") return;
+  if (window.location.pathname.startsWith("/settings")) return;
   try {
     sessionStorage.setItem(RETURN, window.location.pathname);
   } catch {
@@ -201,6 +202,8 @@ export function SettingsPage() {
           Mark cards that are past their due date (off unless you want it)
         </label>
       </div>
+
+      <CenteringSection />
     </section>
   );
 }

@@ -32,6 +32,7 @@ type server struct {
 	boards      *service.Boards
 	attachments *service.Attachments
 	prefs       *service.PrefsService
+	centering   *service.Centering
 	branding    branding.Branding
 	hub         *sse.Hub
 	log         *slog.Logger
@@ -70,6 +71,7 @@ func NewHandler(d Deps) http.Handler {
 		hub: hub,
 		cfg: cfg, store: st, boards: boards, attachments: service.NewAttachments(boards, d.Files),
 		prefs: service.NewPrefs(st, boards, d.Branding.Has), branding: d.Branding, log: log,
+		centering: service.NewCentering(boards),
 	}
 
 	protected := http.NewServeMux()
@@ -80,6 +82,7 @@ func NewHandler(d Deps) http.Handler {
 	s.registerContent(protected)
 	s.registerAttachments(protected)
 	s.registerImports(protected)
+	s.registerCentering(protected)
 	protected.HandleFunc("GET /api/v1/me/prefs", s.getPrefs)
 	protected.HandleFunc("PATCH /api/v1/me/prefs", s.updatePrefs)
 	protected.HandleFunc("GET /api/v1/branding", s.getBranding)

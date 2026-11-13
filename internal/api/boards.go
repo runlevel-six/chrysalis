@@ -72,6 +72,8 @@ func (s *server) serviceError(w http.ResponseWriter, r *http.Request, err error)
 		auth.WriteError(w, http.StatusBadRequest, verr.Msg)
 	case errors.Is(err, service.ErrNotFound):
 		auth.WriteError(w, http.StatusNotFound, "not found")
+	case errors.Is(err, service.ErrCollectionForbidden):
+		auth.WriteError(w, http.StatusForbidden, "you can view this collection but not change it")
 	case errors.Is(err, service.ErrForbidden):
 		auth.WriteError(w, http.StatusForbidden, "you can view this board but not change it")
 	case errors.Is(err, context.Canceled) || errors.Is(r.Context().Err(), context.Canceled):

@@ -316,7 +316,13 @@ export function useViewState(boardId: string, detail: BoardDetail | undefined) {
   const qc = useQueryClient();
   // Card and column toggles batch up; focus and hide-completed ride along in
   // the same request (the latest value wins).
-  const pending = useRef<{ cards: Record<string, boolean>; columns: Record<string, boolean>; focus?: Focus; hideCompleted?: boolean }>({
+  const pending = useRef<{
+    cards: Record<string, boolean>;
+    columns: Record<string, boolean>;
+    focus?: Focus;
+    hideCompleted?: boolean;
+    centeringLine?: boolean;
+  }>({
     cards: {},
     columns: {},
   });
@@ -331,7 +337,7 @@ export function useViewState(boardId: string, detail: BoardDetail | undefined) {
       const done = release.current ?? (() => {});
       release.current = undefined;
       const batch = pending.current;
-      if (!Object.keys(batch.cards).length && !Object.keys(batch.columns).length && !batch.focus && batch.hideCompleted === undefined) {
+      if (!Object.keys(batch.cards).length && !Object.keys(batch.columns).length && !batch.focus && batch.hideCompleted === undefined && batch.centeringLine === undefined) {
         done();
         return;
       }
@@ -352,6 +358,7 @@ export function useViewState(boardId: string, detail: BoardDetail | undefined) {
           columns: { ...batch.columns, ...pending.current.columns },
           focus: pending.current.focus ?? batch.focus,
           hideCompleted: pending.current.hideCompleted ?? batch.hideCompleted,
+          centeringLine: pending.current.centeringLine ?? batch.centeringLine,
         };
       });
     },
@@ -388,7 +395,7 @@ export function useViewState(boardId: string, detail: BoardDetail | undefined) {
   );
 
   const setBoardLevel = useCallback(
-    (change: { focus?: Focus; hideCompleted?: boolean }) => {
+    (change: { focus?: Focus; hideCompleted?: boolean; centeringLine?: boolean }) => {
       qc.setQueryData<BoardDetail>(detailKey(boardId), (d) => (d ? { ...d, view: { ...d.view, ...change } } : d));
       pending.current = { ...pending.current, ...change };
       window.clearTimeout(timer.current);
@@ -412,6 +419,9 @@ export function useViewState(boardId: string, detail: BoardDetail | undefined) {
       hideCompleted: view?.hideCompleted ?? false,
       setFocus: (focus: Focus) => setBoardLevel({ focus }),
       setHideCompleted: (hideCompleted: boolean) => setBoardLevel({ hideCompleted }),
+      /** The per-board override for the centering line; null follows the person's setting. */
+      centeringLine: view?.centeringLine ?? null,
+      setCenteringLine: (centeringLine: boolean) => setBoardLevel({ centeringLine }),
     };
   }, [detail?.view, set, setBoardLevel]);
 }
