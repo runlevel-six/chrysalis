@@ -14,7 +14,6 @@ import { addCards, card, expand, expectAccessible, newBoard } from "./helpers";
 // preferences, and running them side by side would overwrite each other.
 // What they cover (CSS variables and classes) doesn't vary by engine.
 test.describe.configure({ mode: "serial" });
-test.skip(({ browserName, isMobile }) => browserName !== "chromium" || !!isMobile, "runs once, serially");
 
 const DEFAULTS = { theme: "default", mode: "system", density: "comfortable", motion: "system", completionFlutter: true, highlightOverdue: false };
 

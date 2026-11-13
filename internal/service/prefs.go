@@ -9,6 +9,7 @@ import (
 	"errors"
 	"slices"
 
+	"github.com/runlevel-six/chrysalis/internal/sse"
 	"github.com/runlevel-six/chrysalis/internal/store"
 	"github.com/runlevel-six/chrysalis/internal/store/db"
 )
@@ -109,5 +110,8 @@ func (p *PrefsService) Update(ctx context.Context, userID string, patch PrefsPat
 		CompletionFlutter: b2i(cur.CompletionFlutter), HighlightOverdue: b2i(cur.HighlightOverdue),
 		UpdatedAt: store.FormatTime(p.b.now()),
 	})
+	if err == nil {
+		p.b.emit(ctx, sse.Event{UserID: userID, Kind: "prefs"})
+	}
 	return cur, err
 }

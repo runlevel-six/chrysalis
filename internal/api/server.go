@@ -21,6 +21,7 @@ import (
 	"github.com/runlevel-six/chrysalis/internal/branding"
 	"github.com/runlevel-six/chrysalis/internal/config"
 	"github.com/runlevel-six/chrysalis/internal/service"
+	"github.com/runlevel-six/chrysalis/internal/sse"
 	"github.com/runlevel-six/chrysalis/internal/storage"
 	"github.com/runlevel-six/chrysalis/internal/store"
 )
@@ -32,6 +33,7 @@ type server struct {
 	attachments *service.Attachments
 	prefs       *service.PrefsService
 	branding    branding.Branding
+	hub         *sse.Hub
 	log         *slog.Logger
 }
 
@@ -51,13 +53,21 @@ type Deps struct {
 	Auth     auth.Authenticator
 	Static   fs.FS // the built web app
 	Branding branding.Branding
-	Log      *slog.Logger
+	// Hub carries live-sync notices; nil gets a private one (tests).
+	Hub *sse.Hub
+	Log *slog.Logger
 }
 
 func NewHandler(d Deps) http.Handler {
 	cfg, st, authn, static, log := d.Config, d.Store, d.Auth, d.Static, d.Log
 	boards := service.NewBoards(st, time.Now)
+	hub := d.Hub
+	if hub == nil {
+		hub = sse.NewHub()
+	}
+	boards.SetNotifier(hub.Publish)
 	s := &server{
+		hub: hub,
 		cfg: cfg, store: st, boards: boards, attachments: service.NewAttachments(boards, d.Files),
 		prefs: service.NewPrefs(st, boards, d.Branding.Has), branding: d.Branding, log: log,
 	}
@@ -72,6 +82,7 @@ func NewHandler(d Deps) http.Handler {
 	protected.HandleFunc("GET /api/v1/me/prefs", s.getPrefs)
 	protected.HandleFunc("PATCH /api/v1/me/prefs", s.updatePrefs)
 	protected.HandleFunc("GET /api/v1/branding", s.getBranding)
+	protected.HandleFunc("GET /api/v1/events", s.events)
 	protected.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
 		auth.WriteError(w, http.StatusNotFound, "not found")
 	})
@@ -85,7 +96,7 @@ func NewHandler(d Deps) http.Handler {
 	// browsers can fetch it for tabs and home-screen shortcuts.
 	public.HandleFunc("GET /branding/icon", s.brandingIcon)
 	authn.Register(public)
-	public.Handle("/", authn.Middleware(protected))
+	public.Handle("/", authn.Middleware(withOrigin(protected)))
 
 	// CrossOriginProtection (Go 1.25+) rejects state-changing requests
 	// (POST, PUT, DELETE, ...) that a browser marks as cross-site, using

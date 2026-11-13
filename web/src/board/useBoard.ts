@@ -6,6 +6,7 @@
 // undo. If the server refuses, the cache is refetched and a calm message
 // shown, so the screen never disagrees with the server for long.
 
+import { CLIENT_ID, holdSync } from "../live";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { generateKeyBetween } from "fractional-indexing";
@@ -320,22 +321,31 @@ export function useViewState(boardId: string, detail: BoardDetail | undefined) {
     columns: {},
   });
   const timer = useRef<number | undefined>(undefined);
+  // While a change waits to be saved, another device's view notice must not
+  // refetch the server's older copy over it.
+  const release = useRef<(() => void) | undefined>(undefined);
 
   const flush = useCallback(
     (keepalive = false) => {
       window.clearTimeout(timer.current);
+      const done = release.current ?? (() => {});
+      release.current = undefined;
       const batch = pending.current;
-      if (!Object.keys(batch.cards).length && !Object.keys(batch.columns).length && !batch.focus && batch.hideCompleted === undefined) return;
+      if (!Object.keys(batch.cards).length && !Object.keys(batch.columns).length && !batch.focus && batch.hideCompleted === undefined) {
+        done();
+        return;
+      }
       pending.current = { cards: {}, columns: {} };
       if (keepalive) {
         // Page is going away: fetch with keepalive survives navigation.
         void fetch(`/api/v1/boards/${encodeURIComponent(boardId)}/view`, {
           method: "PUT", keepalive: true, credentials: "same-origin",
-          headers: { "Content-Type": "application/json" }, body: JSON.stringify(batch),
+          headers: { "Content-Type": "application/json", "X-Chrysalis-Client": CLIENT_ID }, body: JSON.stringify(batch),
         });
+        done();
         return;
       }
-      api.setView(boardId, batch).catch(() => {
+      api.setView(boardId, batch).finally(done).catch(() => {
         // Not content: merge back and try again on the next change.
         pending.current = {
           cards: { ...batch.cards, ...pending.current.cards },
@@ -346,6 +356,15 @@ export function useViewState(boardId: string, detail: BoardDetail | undefined) {
       });
     },
     [boardId],
+  );
+
+  const schedule = useCallback(
+    (ms: number) => {
+      release.current ??= holdSync();
+      window.clearTimeout(timer.current);
+      timer.current = window.setTimeout(() => flush(), ms);
+    },
+    [flush],
   );
 
   useEffect(() => {
@@ -363,10 +382,9 @@ export function useViewState(boardId: string, detail: BoardDetail | undefined) {
         d ? { ...d, view: { ...d.view, [kind]: { ...d.view[kind], ...values } } } : d,
       );
       pending.current[kind] = { ...pending.current[kind], ...values };
-      window.clearTimeout(timer.current);
-      timer.current = window.setTimeout(() => flush(), 500);
+      schedule(500);
     },
-    [qc, boardId, flush],
+    [qc, boardId, schedule],
   );
 
   const setBoardLevel = useCallback(
@@ -377,7 +395,7 @@ export function useViewState(boardId: string, detail: BoardDetail | undefined) {
       // Sooner than card toggles: these change the whole board.
       timer.current = window.setTimeout(() => flush(), 150);
     },
-    [qc, boardId, flush],
+    [qc, boardId, schedule],
   );
 
   return useMemo(() => {

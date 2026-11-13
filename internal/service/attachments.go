@@ -124,6 +124,7 @@ func (a *Attachments) Upload(ctx context.Context, userID, cardID, filename strin
 		_ = a.files.Delete(ctx, row.ThumbKey)
 		return Attachment{}, err
 	}
+	a.b.emitCard(ctx, cardID, "attachment", created.ID)
 	return attachmentFromRow(created), nil
 }
 
@@ -184,6 +185,7 @@ func (a *Attachments) AddLink(ctx context.Context, userID, cardID, rawURL, title
 	if err != nil {
 		return Attachment{}, err
 	}
+	a.b.emitCard(ctx, cardID, "attachment", created.ID)
 	return attachmentFromRow(created), nil
 }
 
@@ -264,6 +266,9 @@ func (a *Attachments) SetTrashed(ctx context.Context, userID, id string, trashed
 	row, err = a.b.st.SetAttachmentDeleted(ctx, db.SetAttachmentDeletedParams{ID: row.ID, DeletedAt: del})
 	if err != nil {
 		return Attachment{}, err
+	}
+	if row.CardID.Valid {
+		a.b.emitCard(ctx, row.CardID.String, "attachment", row.ID)
 	}
 	return attachmentFromRow(row), nil
 }

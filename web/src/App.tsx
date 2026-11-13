@@ -12,6 +12,7 @@ import { BoardPage } from "./board/BoardPage";
 import { rememberReturn, SettingsPage, useBrandingThemes } from "./Settings";
 import { applyAppearance, DEFAULT_PREFS, watchSystem } from "./appearance";
 import { Icon } from "./ui";
+import { useLiveSync } from "./live";
 
 // Opening the app lands where you left off (§3.3): the first time a tab
 // loads "/", it goes to the last board you had open. Reloads and later
@@ -36,6 +37,9 @@ const markLanded = () => {
 export function App() {
   const path = usePath();
   const me = useQuery({ queryKey: ["me"], queryFn: api.me });
+  const boardMatch = path.match(/^\/b\/([^/]+)$/);
+  // Changes from other devices and tabs: this board's, and this user's own.
+  useLiveSync(boardMatch ? decodeURIComponent(boardMatch[1]) : undefined, !!me.data);
 
   useEffect(() => {
     if (!me.data) return;
@@ -69,7 +73,6 @@ export function App() {
     return <SignedOut />;
   }
 
-  const boardMatch = path.match(/^\/b\/([^/]+)$/);
   let page;
   if (path === "/") page = <BoardList />;
   else if (path === "/settings") page = <SettingsPage />;

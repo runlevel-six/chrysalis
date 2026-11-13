@@ -20,6 +20,7 @@ import (
 	"github.com/runlevel-six/chrysalis/internal/branding"
 	"github.com/runlevel-six/chrysalis/internal/config"
 	"github.com/runlevel-six/chrysalis/internal/service"
+	"github.com/runlevel-six/chrysalis/internal/sse"
 	"github.com/runlevel-six/chrysalis/internal/storage"
 	"github.com/runlevel-six/chrysalis/internal/store"
 	"github.com/runlevel-six/chrysalis/web"
@@ -70,6 +71,10 @@ func run() error {
 		return err
 	}
 
+	// Live-sync notices. Closed first on shutdown, so open event streams end
+	// and don't hold the server open.
+	hub := sse.NewHub()
+
 	authn := newAuthenticator(cfg, st, log)
 	go purgeExpiredSessions(ctx, st, log)
 	go purgeTrash(ctx, st, files, cfg.TrashRetention, log)
@@ -77,7 +82,7 @@ func run() error {
 	srv := &http.Server{
 		Addr: cfg.ListenAddr,
 		Handler: api.NewHandler(api.Deps{
-			Config: cfg, Store: st, Files: files, Auth: authn, Static: web.Dist(), Branding: brand, Log: log,
+			Config: cfg, Store: st, Files: files, Auth: authn, Static: web.Dist(), Branding: brand, Hub: hub, Log: log,
 		}),
 		ReadHeaderTimeout: 10 * time.Second,
 	}
@@ -91,6 +96,7 @@ func run() error {
 	case <-ctx.Done():
 	}
 	log.Info("shutting down")
+	hub.Close()
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if err := srv.Shutdown(shutdownCtx); err != nil && !errors.Is(err, http.ErrServerClosed) {

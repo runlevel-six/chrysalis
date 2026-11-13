@@ -18,6 +18,7 @@ import (
 	"github.com/oklog/ulid/v2"
 
 	"github.com/runlevel-six/chrysalis/internal/order"
+	"github.com/runlevel-six/chrysalis/internal/sse"
 	"github.com/runlevel-six/chrysalis/internal/store"
 	"github.com/runlevel-six/chrysalis/internal/store/db"
 )
@@ -72,8 +73,9 @@ func boardFromRow(b db.Board, role string) Board {
 }
 
 type Boards struct {
-	st  *store.Store
-	now func() time.Time
+	st     *store.Store
+	now    func() time.Time
+	notify Notifier
 }
 
 func NewBoards(st *store.Store, now func() time.Time) *Boards {
@@ -167,6 +169,8 @@ func (s *Boards) Create(ctx context.Context, userID, name string, template ...st
 	if err := tx.Commit(); err != nil {
 		return Board{}, err
 	}
+	// The person's board list changed on their other devices.
+	s.emit(ctx, sse.Event{UserID: userID, Kind: "boards", EntityID: row.ID})
 	return boardFromRow(row, string(RoleOwner)), nil
 }
 

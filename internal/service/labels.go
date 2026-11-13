@@ -16,6 +16,7 @@ import (
 
 	"github.com/oklog/ulid/v2"
 
+	"github.com/runlevel-six/chrysalis/internal/sse"
 	"github.com/runlevel-six/chrysalis/internal/store"
 	"github.com/runlevel-six/chrysalis/internal/store/db"
 )
@@ -73,6 +74,9 @@ func (s *Boards) CreateLabel(ctx context.Context, userID, boardID, name, color s
 		out = labelFromRow(row)
 		return err
 	})
+	if err == nil {
+		s.emit(ctx, sse.Event{BoardID: out.BoardID, Kind: "label", EntityID: out.ID})
+	}
 	return out, err
 }
 
@@ -110,6 +114,9 @@ func (s *Boards) UpdateLabel(ctx context.Context, userID, labelID string, p Labe
 		out = labelFromRow(row)
 		return err
 	})
+	if err == nil {
+		s.emit(ctx, sse.Event{BoardID: out.BoardID, Kind: "label", EntityID: out.ID})
+	}
 	return out, err
 }
 
@@ -137,6 +144,9 @@ func (s *Boards) SetLabelTrashed(ctx context.Context, userID, labelID string, tr
 		out = labelFromRow(row)
 		return err
 	})
+	if err == nil {
+		s.emit(ctx, sse.Event{BoardID: out.BoardID, Kind: "label", EntityID: out.ID})
+	}
 	return out, err
 }
 
@@ -245,5 +255,8 @@ func (s *Boards) UpdateBoard(ctx context.Context, userID, boardID string, p Boar
 		out = boardFromRow(row, string(r))
 		return err
 	})
+	if err == nil {
+		s.emit(ctx, sse.Event{BoardID: out.ID, Kind: "board", EntityID: out.ID})
+	}
 	return out, err
 }

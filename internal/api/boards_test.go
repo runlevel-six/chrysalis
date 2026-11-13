@@ -11,7 +11,6 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
-	"net/netip"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -49,9 +48,10 @@ func newMultiUserWith(t *testing.T, static fs.FS, env map[string]string) *multiU
 
 func (m *multiUser) open(static fs.FS) {
 	settings := map[string]string{
-		"CHRYSALIS_BASE_URL":            "https://board.example.home",
-		"CHRYSALIS_AUTH_MODE":           "header",
-		"CHRYSALIS_TRUSTED_PROXY_CIDRS": "192.0.2.0/24",
+		"CHRYSALIS_BASE_URL":  "https://board.example.home",
+		"CHRYSALIS_AUTH_MODE": "header",
+		// 192.0.2.1 is httptest's fake client; loopback is a real test server.
+		"CHRYSALIS_TRUSTED_PROXY_CIDRS": "192.0.2.0/24,127.0.0.1/32",
 	}
 	for k, v := range m.env {
 		settings[k] = v
@@ -66,7 +66,7 @@ func (m *multiUser) open(static fs.FS) {
 	}
 	m.t.Cleanup(func() { st.Close() })
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
-	authn := auth.NewHeaderAuth(cfg.Header, []netip.Prefix{netip.MustParsePrefix("192.0.2.0/24")}, auth.NewUsers(st.Queries, time.Now), log)
+	authn := auth.NewHeaderAuth(cfg.Header, cfg.TrustedProxies, auth.NewUsers(st.Queries, time.Now), log)
 	m.st = st
 	files, err := storage.NewLocal(filepath.Join(filepath.Dir(m.dbPath), "attachments"))
 	if err != nil {

@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/runlevel-six/chrysalis/internal/sse"
 	"github.com/runlevel-six/chrysalis/internal/store"
 	"github.com/runlevel-six/chrysalis/internal/store/db"
 )
@@ -88,10 +89,13 @@ func (s *Boards) SetDescription(ctx context.Context, userID, cardID string, doc 
 		return Description{}, err
 	}
 	var out Description
+	var boardID string
 	err = s.tx(ctx, func(q *db.Queries) error {
-		if _, err := liveCard(ctx, q, userID, cardID, true); err != nil {
+		card, err := liveCard(ctx, q, userID, cardID, true)
+		if err != nil {
 			return err
 		}
+		boardID = card.BoardID
 		cur, err := q.GetCardDescription(ctx, cardID)
 		var current int64
 		switch {
@@ -111,5 +115,8 @@ func (s *Boards) SetDescription(ctx context.Context, userID, cardID string, doc 
 		out = descriptionFromRow(row)
 		return err
 	})
+	if err == nil {
+		s.emit(ctx, sse.Event{BoardID: boardID, Kind: "description", EntityID: cardID, CardID: cardID})
+	}
 	return out, err
 }

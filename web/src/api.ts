@@ -3,6 +3,7 @@
 
 // Typed wrappers around the /api/v1 endpoints.
 
+import { CLIENT_ID } from "./live";
 import type { Prefs, Theme } from "./appearance";
 
 export type User = {
@@ -159,11 +160,15 @@ export class ApiError extends Error {
   }
 }
 
+// Marks requests with this tab's id, so live-sync notices it causes are
+// skipped here (it already shows the change).
+const CLIENT_HEADER = { "X-Chrysalis-Client": CLIENT_ID };
+
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
   const res = await fetch(`/api/v1${path}`, {
     method,
     credentials: "same-origin",
-    headers: body === undefined ? undefined : { "Content-Type": "application/json" },
+    headers: body === undefined ? CLIENT_HEADER : { ...CLIENT_HEADER, "Content-Type": "application/json" },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   if (!res.ok) {
@@ -212,6 +217,7 @@ export const api = {
     const res = await fetch(`/api/v1/boards/${encodeURIComponent(boardId)}/background`, {
       method: "POST",
       credentials: "same-origin",
+      headers: CLIENT_HEADER,
       body: form,
     });
     const body = await res.json().catch(() => undefined);
@@ -241,6 +247,7 @@ export const api = {
     const res = await fetch(`/api/v1/cards/${encodeURIComponent(cardId)}/attachments`, {
       method: "POST",
       credentials: "same-origin",
+      headers: CLIENT_HEADER,
       body: form,
     });
     const body = await res.json().catch(() => undefined);

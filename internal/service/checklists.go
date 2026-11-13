@@ -142,6 +142,9 @@ func (s *Boards) CreateChecklist(ctx context.Context, userID, cardID, title stri
 		out = checklistFromRow(row)
 		return err
 	})
+	if err == nil {
+		s.emitCard(ctx, cardID, "checklist", out.ID)
+	}
 	return out, err
 }
 
@@ -173,6 +176,9 @@ func (s *Boards) UpdateChecklist(ctx context.Context, userID, checklistID string
 		out = checklistFromRow(row)
 		return err
 	})
+	if err == nil {
+		s.emitCard(ctx, out.CardID, "checklist", out.ID)
+	}
 	return out, err
 }
 
@@ -198,6 +204,9 @@ func (s *Boards) SetChecklistTrashed(ctx context.Context, userID, checklistID st
 		out = checklistFromRow(row)
 		return err
 	})
+	if err == nil {
+		s.emitCard(ctx, out.CardID, "checklist", out.ID)
+	}
 	return out, err
 }
 
@@ -222,6 +231,11 @@ func (s *Boards) CreateChecklistItem(ctx context.Context, userID, checklistID, t
 		out = itemFromRow(row)
 		return err
 	})
+	if err == nil {
+		if cl, err := s.st.GetChecklist(ctx, out.ChecklistID); err == nil {
+			s.emitCard(ctx, cl.CardID, "checklist", cl.ID)
+		}
+	}
 	return out, err
 }
 
@@ -292,6 +306,11 @@ func (s *Boards) UpdateChecklistItem(ctx context.Context, userID, itemID string,
 		out = itemFromRow(row)
 		return err
 	})
+	if err == nil {
+		if cl, err := s.st.GetChecklist(ctx, out.ChecklistID); err == nil {
+			s.emitCard(ctx, cl.CardID, "checklist", cl.ID)
+		}
+	}
 	return out, err
 }
 
@@ -321,5 +340,10 @@ func (s *Boards) SetChecklistItemTrashed(ctx context.Context, userID, itemID str
 		out = itemFromRow(row)
 		return err
 	})
+	if err == nil {
+		if cl, err := s.st.GetChecklist(ctx, out.ChecklistID); err == nil {
+			s.emitCard(ctx, cl.CardID, "checklist", cl.ID)
+		}
+	}
 	return out, err
 }

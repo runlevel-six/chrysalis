@@ -11,6 +11,7 @@ import { defineConfig, devices } from "@playwright/test";
 
 const port = 18090;
 const baseURL = `http://localhost:${port}`;
+const PREFS_TESTS = /appearance\.spec\.ts/;
 
 export default defineConfig({
   testDir: "e2e",
@@ -23,11 +24,20 @@ export default defineConfig({
     // Traces can capture page content; they're gitignored (docs/DESIGN.md §0.1).
     trace: "retain-on-failure",
   },
+  // Every test signs in as the same dev user, and preferences sync live to
+  // every open tab (§5.5). Tests that change preferences therefore run on
+  // their own, after everything else, so they can't reflow other tests' pages.
   projects: [
-    { name: "chromium", use: { ...devices["Desktop Chrome"] } },
-    { name: "webkit", use: { ...devices["Desktop Safari"] } },
-    { name: "iphone", use: { ...devices["iPhone 15"] } },
-    { name: "ipad", use: { ...devices["iPad Pro 11"] } },
+    { name: "chromium", use: { ...devices["Desktop Chrome"] }, testIgnore: PREFS_TESTS },
+    { name: "webkit", use: { ...devices["Desktop Safari"] }, testIgnore: PREFS_TESTS },
+    { name: "iphone", use: { ...devices["iPhone 15"] }, testIgnore: PREFS_TESTS },
+    { name: "ipad", use: { ...devices["iPad Pro 11"] }, testIgnore: PREFS_TESTS },
+    {
+      name: "preferences",
+      use: { ...devices["Desktop Chrome"] },
+      testMatch: PREFS_TESTS,
+      dependencies: ["chromium", "webkit", "iphone", "ipad"],
+    },
   ],
   webServer: {
     command: "../bin/chrysalis",

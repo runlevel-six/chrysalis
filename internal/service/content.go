@@ -17,6 +17,7 @@ import (
 	"github.com/oklog/ulid/v2"
 
 	"github.com/runlevel-six/chrysalis/internal/order"
+	"github.com/runlevel-six/chrysalis/internal/sse"
 	"github.com/runlevel-six/chrysalis/internal/store"
 	"github.com/runlevel-six/chrysalis/internal/store/db"
 )
@@ -383,6 +384,9 @@ func (s *Boards) CreateColumn(ctx context.Context, userID, boardID, name string,
 		out = columnFromRow(row)
 		return err
 	})
+	if err == nil {
+		s.emit(ctx, sse.Event{BoardID: out.BoardID, Kind: "column", EntityID: out.ID})
+	}
 	return out, err
 }
 
@@ -455,6 +459,9 @@ func (s *Boards) UpdateColumn(ctx context.Context, userID, columnID string, p Co
 		out = columnFromRow(row)
 		return err
 	})
+	if err == nil {
+		s.emit(ctx, sse.Event{BoardID: out.BoardID, Kind: "column", EntityID: out.ID})
+	}
 	return out, err
 }
 
@@ -482,6 +489,9 @@ func (s *Boards) SetColumnTrashed(ctx context.Context, userID, columnID string, 
 		out = columnFromRow(row)
 		return err
 	})
+	if err == nil {
+		s.emit(ctx, sse.Event{BoardID: out.BoardID, Kind: "column", EntityID: out.ID})
+	}
 	return out, err
 }
 
@@ -516,6 +526,9 @@ func (s *Boards) CreateCard(ctx context.Context, userID, columnID, title string,
 		out = cardFromRow(row)
 		return err
 	})
+	if err == nil {
+		s.emit(ctx, sse.Event{BoardID: out.BoardID, Kind: "card", EntityID: out.ID, CardID: out.ID})
+	}
 	return out, err
 }
 
@@ -543,8 +556,10 @@ type Cover struct {
 
 func (s *Boards) UpdateCard(ctx context.Context, userID, cardID string, p CardPatch) (Card, error) {
 	var out Card
+	var fromBoard string
 	err := s.tx(ctx, func(q *db.Queries) error {
 		c, err := q.GetCard(ctx, cardID)
+		fromBoard = c.BoardID
 		if errors.Is(err, sql.ErrNoRows) || (err == nil && c.DeletedAt.Valid) {
 			return ErrNotFound
 		}
@@ -672,6 +687,12 @@ func (s *Boards) UpdateCard(ctx context.Context, userID, cardID string, p CardPa
 		out, err = withLabels(ctx, q, cardFromRow(row))
 		return err
 	})
+	if err == nil {
+		s.emit(ctx, sse.Event{BoardID: out.BoardID, Kind: "card", EntityID: out.ID, CardID: out.ID})
+		if fromBoard != out.BoardID {
+			s.emit(ctx, sse.Event{BoardID: fromBoard, Kind: "card", EntityID: out.ID, CardID: out.ID})
+		}
+	}
 	return out, err
 }
 
@@ -768,6 +789,9 @@ func (s *Boards) SetCardTrashed(ctx context.Context, userID, cardID string, tras
 		out, err = withLabels(ctx, q, cardFromRow(row))
 		return err
 	})
+	if err == nil {
+		s.emit(ctx, sse.Event{BoardID: out.BoardID, Kind: "card", EntityID: out.ID, CardID: out.ID})
+	}
 	return out, err
 }
 
@@ -819,7 +843,7 @@ func (s *Boards) SetView(ctx context.Context, userID, boardID string, v ViewChan
 		}
 		return 0
 	}
-	return s.tx(ctx, func(q *db.Queries) error {
+	err := s.tx(ctx, func(q *db.Queries) error {
 		if _, err := role(ctx, q, userID, boardID, false); err != nil {
 			return err
 		}
@@ -881,6 +905,12 @@ func (s *Boards) SetView(ctx context.Context, userID, boardID string, v ViewChan
 		}
 		return nil
 	})
+	// Only this person's other devices care about their view, and only when
+	// something they'd see changed: merely opening the board isn't news.
+	if err == nil && (len(cards) > 0 || len(columns) > 0 || v.Focus != nil || v.HideCompleted != nil) {
+		s.emit(ctx, sse.Event{UserID: userID, Kind: "view", EntityID: boardID})
+	}
+	return err
 }
 
 func cleanFocus(ctx context.Context, q *db.Queries, boardID string, f Focus) (Focus, error) {

@@ -24,6 +24,7 @@ import { api, ApiError, LABEL_COLORS, type BoardDetail, type Card, type Column, 
 import { Dialog, Icon, Menu } from "../ui";
 import { flutterFrom } from "../flutter";
 import { backgroundStyle } from "./backgrounds";
+import { holdSync } from "../live";
 import { DEFAULT_PREFS, isDark } from "../appearance";
 import { ArchivedDialog, BoardSettingsDialog, CardMeta, CoverBand, CoverDialog, DatesDialog, LabelChip, LabelsDialog } from "./details";
 import { Attachments } from "./Attachments";
@@ -89,6 +90,9 @@ export function BoardPage({
   // can preview their new column before the drop is committed.
   const [dragItems, setDragItems] = useState<Containers | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
+  // Hold other devices' changes while a card is in the air.
+  useEffect(() => (activeId ? holdSync() : undefined), [activeId]);
+
   const items = dragItems ?? (d ? containersOf(d) : {});
 
   const sensors = useSensors(
