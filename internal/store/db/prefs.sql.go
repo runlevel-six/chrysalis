@@ -11,7 +11,7 @@ import (
 
 const getPrefs = `-- name: GetPrefs :one
 
-SELECT user_id, theme, mode, density, motion, completion_flutter, highlight_overdue, updated_at FROM user_prefs WHERE user_id = ?
+SELECT user_id, theme, mode, density, motion, completion_flutter, highlight_overdue, updated_at, reminders_enabled, time_zone FROM user_prefs WHERE user_id = ?
 `
 
 // Copyright 2026 Jason Hall
@@ -28,18 +28,22 @@ func (q *Queries) GetPrefs(ctx context.Context, userID string) (UserPref, error)
 		&i.CompletionFlutter,
 		&i.HighlightOverdue,
 		&i.UpdatedAt,
+		&i.RemindersEnabled,
+		&i.TimeZone,
 	)
 	return i, err
 }
 
 const upsertPrefs = `-- name: UpsertPrefs :one
-INSERT INTO user_prefs (user_id, theme, mode, density, motion, completion_flutter, highlight_overdue, updated_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO user_prefs (user_id, theme, mode, density, motion, completion_flutter, highlight_overdue,
+    reminders_enabled, time_zone, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT (user_id) DO UPDATE SET
     theme = excluded.theme, mode = excluded.mode, density = excluded.density, motion = excluded.motion,
     completion_flutter = excluded.completion_flutter, highlight_overdue = excluded.highlight_overdue,
+    reminders_enabled = excluded.reminders_enabled, time_zone = excluded.time_zone,
     updated_at = excluded.updated_at
-RETURNING user_id, theme, mode, density, motion, completion_flutter, highlight_overdue, updated_at
+RETURNING user_id, theme, mode, density, motion, completion_flutter, highlight_overdue, updated_at, reminders_enabled, time_zone
 `
 
 type UpsertPrefsParams struct {
@@ -50,6 +54,8 @@ type UpsertPrefsParams struct {
 	Motion            string
 	CompletionFlutter int64
 	HighlightOverdue  int64
+	RemindersEnabled  int64
+	TimeZone          string
 	UpdatedAt         string
 }
 
@@ -62,6 +68,8 @@ func (q *Queries) UpsertPrefs(ctx context.Context, arg UpsertPrefsParams) (UserP
 		arg.Motion,
 		arg.CompletionFlutter,
 		arg.HighlightOverdue,
+		arg.RemindersEnabled,
+		arg.TimeZone,
 		arg.UpdatedAt,
 	)
 	var i UserPref
@@ -74,6 +82,8 @@ func (q *Queries) UpsertPrefs(ctx context.Context, arg UpsertPrefsParams) (UserP
 		&i.CompletionFlutter,
 		&i.HighlightOverdue,
 		&i.UpdatedAt,
+		&i.RemindersEnabled,
+		&i.TimeZone,
 	)
 	return i, err
 }

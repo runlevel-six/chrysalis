@@ -80,6 +80,20 @@ type CardLabel struct {
 	LabelID string
 }
 
+type CardReminder struct {
+	CardID        string
+	UserID        string
+	Kind          string
+	OffsetMinutes int64
+	At            sql.NullString
+	TimeZone      string
+	RemindAt      sql.NullString
+	SnoozedUntil  sql.NullString
+	FiredAt       sql.NullString
+	CreatedAt     string
+	UpdatedAt     string
+}
+
 type Checklist struct {
 	ID        string
 	CardID    string
@@ -139,6 +153,18 @@ type Label struct {
 	UpdatedAt string
 	DeletedAt sql.NullString
 	Version   int64
+}
+
+type Notification struct {
+	ID          string
+	UserID      string
+	CardID      sql.NullString
+	BoardID     sql.NullString
+	Kind        string
+	Text        string
+	CreatedAt   string
+	ReadAt      sql.NullString
+	DismissedAt sql.NullString
 }
 
 type Quote struct {
@@ -239,4 +265,6 @@ type UserPref struct {
 	CompletionFlutter int64
 	HighlightOverdue  int64
 	UpdatedAt         string
+	RemindersEnabled  int64
+	TimeZone          string
 }

@@ -292,7 +292,40 @@ export type Calendar = {
   undatedMore: boolean;
 };
 
+/** One person's reminder on a card (§3.9). */
+export type Reminder = {
+  cardId: string;
+  kind: "due" | "before" | "at";
+  offsetMinutes?: number;
+  at?: string;
+  timeZone: string;
+  remindAt: string | null;
+  firedAt?: string;
+};
+export type ReminderSpec = { kind: Reminder["kind"]; offsetMinutes?: number; at?: string; timeZone: string };
+
+export type Notification = {
+  id: string;
+  kind: "reminder";
+  text: string;
+  cardId?: string;
+  boardId?: string;
+  createdAt: string;
+  readAt: string | null;
+};
+
 export const api = {
+  reminder: (cardId: string) =>
+    request<{ reminder: Reminder | null }>("GET", `/cards/${encodeURIComponent(cardId)}/reminder`).then((r) => r.reminder),
+  setReminder: (cardId: string, spec: ReminderSpec) =>
+    request<{ reminder: Reminder }>("PUT", `/cards/${encodeURIComponent(cardId)}/reminder`, spec).then((r) => r.reminder),
+  clearReminder: (cardId: string) => request<void>("DELETE", `/cards/${encodeURIComponent(cardId)}/reminder`),
+  notifications: () => request<{ notifications: Notification[]; unread: number }>("GET", "/me/notifications"),
+  readNotifications: () => request<void>("POST", "/me/notifications/read"),
+  dismissAllNotifications: () => request<void>("POST", "/me/notifications/dismiss"),
+  dismissNotification: (id: string) => request<void>("POST", `/notifications/${encodeURIComponent(id)}/dismiss`),
+  snoozeNotification: (id: string, until: Date) =>
+    request<void>("POST", `/notifications/${encodeURIComponent(id)}/snooze`, { until: until.toISOString() }),
   calendar: (q: { board?: string; from: string; to: string; undated?: boolean }) => {
     const p = new URLSearchParams({ from: q.from, to: q.to });
     if (q.board) p.set("board", q.board);

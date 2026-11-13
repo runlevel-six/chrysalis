@@ -2320,3 +2320,75 @@ kbd {
     min-width: 2.5rem;
   }
 }
+
+/* ---------- Notifications (§3.9) ---------- */
+
+.notifications-button {
+  position: relative;
+  border: 0;
+  background: none;
+  color: inherit;
+}
+
+.notify-dot {
+  position: absolute;
+  top: 9px;
+  right: 9px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 2px var(--surface);
+}
+
+.notification-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.notification {
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.notification.is-new .notification-text {
+  font-weight: 600;
+}
+
+.notification-text,
+.notification-time {
+  margin: 0;
+}
+
+.notification-time {
+  font-size: 0.8125rem;
+}
+
+.notification-actions {
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-top: 0.25rem;
+}
+
+.snooze-choices {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.5rem;
+  margin-top: 0.25rem;
+  padding: 0.5rem;
+  border-radius: var(--radius);
+  background: var(--column-bg);
+}
+
+.reminder-field {
+  margin-top: 0.5rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+}
+
+.reminder-hint {
+  margin: 0.5rem 0 0;
+  font-size: 0.875rem;
+}

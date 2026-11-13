@@ -90,6 +90,8 @@ func serve(ctx context.Context) error {
 	authn := newAuthenticator(cfg, st, log)
 	go purgeExpiredSessions(ctx, st, log)
 	go purgeTrash(ctx, st, files, cfg.TrashRetention, log)
+	// Reminders (§3.9) are checked every half minute.
+	boards := service.NewBoards(st, time.Now)
 	if cfg.Backup.Schedule == "daily" {
 		go dailyBackups(ctx, st, cfg, log)
 	}
@@ -97,10 +99,13 @@ func serve(ctx context.Context) error {
 	srv := &http.Server{
 		Addr: cfg.ListenAddr,
 		Handler: api.NewHandler(api.Deps{
-			Config: cfg, Store: st, Files: files, Auth: authn, Static: web.Dist(), Branding: brand, Hub: hub, Log: log,
+			Config: cfg, Store: st, Files: files, Auth: authn, Static: web.Dist(), Branding: brand, Hub: hub, Boards: boards, Log: log,
 		}),
 		ReadHeaderTimeout: 10 * time.Second,
 	}
+	// Reminders (§3.9) are checked every half minute, once the handler has
+	// connected the service to live sync.
+	go fireReminders(ctx, boards, log)
 	errc := make(chan error, 1)
 	go func() { errc <- srv.ListenAndServe() }()
 	log.Info("listening", "version", version, "addr", cfg.ListenAddr, "base_url", cfg.BaseURL.String(), "auth_mode", cfg.AuthMode)
@@ -174,6 +179,10 @@ func purgeTrash(ctx context.Context, st *store.Store, files storage.Store, reten
 		} else if n > 0 {
 			log.Info("purged attachment files", "count", n)
 		}
+		// Notifications are a short-lived list, kept as long as the trash.
+		if _, err := service.PurgeNotifications(ctx, st, cutoff); err != nil && ctx.Err() == nil {
+			log.Error("purge notifications", "err", err)
+		}
 		n, err := service.PurgeTrash(ctx, st, cutoff)
 		if err != nil && ctx.Err() == nil {
 			log.Error("purge trash", "err", err)
@@ -208,6 +217,24 @@ func dailyBackups(ctx context.Context, st *store.Store, cfg *config.Config, log 
 			if b.Path != "" {
 				log.Info("backed up", "path", b.Path, "pruned", len(removed))
 			}
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+		}
+	}
+}
+
+// fireReminders turns due reminders into notifications every 30 seconds.
+func fireReminders(ctx context.Context, boards *service.Boards, log *slog.Logger) {
+	t := time.NewTicker(30 * time.Second)
+	defer t.Stop()
+	for {
+		if n, err := boards.FireReminders(ctx); err != nil && ctx.Err() == nil {
+			log.Error("fire reminders", "err", err)
+		} else if n > 0 {
+			log.Info("reminders went off", "count", n)
 		}
 		select {
 		case <-ctx.Done():

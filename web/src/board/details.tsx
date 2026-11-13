@@ -6,11 +6,12 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { api, ApiError, attachmentUrl, LABEL_COLORS, type Board, type BoardSettings, type Card, type Label, type LabelColor } from "../api";
+import { api, ApiError, attachmentUrl, LABEL_COLORS, type Board, type Reminder, type BoardSettings, type Card, type Label, type LabelColor } from "../api";
 import { BACKGROUND_COLORS, GRADIENTS } from "./backgrounds";
 import { attachmentsKey } from "./Attachments";
 import { Dialog, Icon } from "../ui";
 import { useUndo } from "../undo";
+import { deviceTimeZone } from "../appearance";
 import { navigate } from "../router";
 import { detailKey, type useBoardActions } from "./useBoard";
 
@@ -175,6 +176,7 @@ export function DatesDialog({ card, actions, onClose }: { card: Card; actions: A
   const [withTime, setWithTime] = useState(card.dueHasTime);
   const [time, setTime] = useState(due ? localTime(due) : "17:00");
   const [error, setError] = useState("");
+  const reminder = useReminderChoice(card);
 
   const save = (e: FormEvent) => {
     e.preventDefault();
@@ -188,11 +190,15 @@ export function DatesDialog({ card, actions, onClose }: { card: Card; actions: A
       const [hh, mm] = time.split(":").map(Number);
       dueAt = new Date(y, m - 1, d, hh, mm).toISOString(); // the viewer's local time, sent as UTC
     }
-    void actions.updateCard(
-      card,
-      { startAt: start || null, dueAt, dueHasTime: !!dueAt && withTime },
-      `Changed dates on “${card.title}”`,
-    );
+    const changedDates = (start || null) !== card.startAt || dueAt !== card.dueAt || (!!dueAt && withTime) !== card.dueHasTime;
+    if (changedDates) {
+      void actions.updateCard(
+        card,
+        { startAt: start || null, dueAt, dueHasTime: !!dueAt && withTime },
+        `Changed dates on “${card.title}”`,
+      );
+    }
+    void reminder.save(!!dueAt);
     onClose();
   };
 
@@ -217,6 +223,7 @@ export function DatesDialog({ card, actions, onClose }: { card: Card; actions: A
             <input type="time" value={time} onChange={(e) => setTime(e.target.value)} />
           </label>
         )}
+        <ReminderField choice={reminder} hasDue={!!dueDate} />
         {error && <p className="note" role="alert">{error}</p>}
         <div className="row">
           <button type="submit">Save</button>
@@ -693,5 +700,96 @@ function BoardLifecycle({ boardId, name, onClose }: { boardId: string; name: str
       )}
       <p className="muted">Archived boards move off your list but keep everything, and can be brought back any time.</p>
     </fieldset>
+  );
+}
+
+// ---------- Reminders (§3.9) ----------
+
+const REMIND_OPTIONS: { value: string; text: string; needsDue: boolean }[] = [
+  { value: "", text: "Don't remind me", needsDue: false },
+  { value: "due", text: "When it's due", needsDue: true },
+  { value: "before:60", text: "1 hour before", needsDue: true },
+  { value: "before:1440", text: "1 day before", needsDue: true },
+  { value: "before:2880", text: "2 days before", needsDue: true },
+  { value: "before:10080", text: "1 week before", needsDue: true },
+  { value: "at", text: "At a time I choose", needsDue: false },
+];
+
+const choiceOf = (r: Reminder | null | undefined) =>
+  !r ? "" : r.kind === "before" ? `before:${r.offsetMinutes}` : r.kind;
+
+const toLocalInput = (iso: string) => {
+  const d = new Date(iso);
+  return `${localDate(d)}T${localTime(d)}`;
+};
+
+/** The person's reminder on a card, as a choice in the dates dialog. */
+function useReminderChoice(card: Card) {
+  const qc = useQueryClient();
+  const { notify } = useUndo();
+  const me = useQuery({ queryKey: ["me"], queryFn: api.me });
+  const enabled = !!me.data?.prefs?.remindersEnabled;
+  const q = useQuery({ queryKey: ["card", card.id, "reminder"], queryFn: () => api.reminder(card.id), enabled });
+  const [value, setValue] = useState<string | null>(null);
+  const [at, setAt] = useState<string | null>(null);
+  const current = choiceOf(q.data);
+  const shown = value ?? current;
+  const shownAt = at ?? (q.data?.kind === "at" && q.data.at ? toLocalInput(q.data.at) : "");
+
+  const save = async (hasDue: boolean) => {
+    if (!enabled || value === null || (value === current && (value !== "at" || at === null))) return;
+    try {
+      const timeZone = deviceTimeZone();
+      if (value === "") {
+        await api.clearReminder(card.id);
+      } else if (value === "at") {
+        if (!shownAt) return;
+        await api.setReminder(card.id, { kind: "at", at: new Date(shownAt).toISOString(), timeZone });
+      } else if (!hasDue) {
+        return; // a due-relative reminder needs a due date; the field says so
+      } else if (value === "due") {
+        await api.setReminder(card.id, { kind: "due", timeZone });
+      } else {
+        await api.setReminder(card.id, { kind: "before", offsetMinutes: Number(value.split(":")[1]), timeZone });
+      }
+      await qc.invalidateQueries({ queryKey: ["card", card.id, "reminder"] });
+    } catch (err) {
+      notify(err instanceof ApiError ? err.message : "The reminder didn't save. Check your connection and try again.");
+    }
+  };
+  return { enabled, loading: q.isPending && enabled, value: shown, at: shownAt, setValue, setAt, save, reminder: q.data };
+}
+
+function ReminderField({ choice, hasDue }: { choice: ReturnType<typeof useReminderChoice>; hasDue: boolean }) {
+  if (!choice.enabled) {
+    return <p className="muted reminder-hint">To be reminded about this card, turn on reminders in Settings.</p>;
+  }
+  const needsDue = REMIND_OPTIONS.find((o) => o.value === choice.value)?.needsDue && !hasDue;
+  const id = `remind-${choice.reminder?.cardId ?? "card"}`;
+  const when = choice.reminder?.remindAt && !choice.reminder.firedAt ? new Date(choice.reminder.remindAt) : null;
+  return (
+    <div className="field reminder-field">
+      <label htmlFor={id}>Remind me</label>
+      <select id={id} value={choice.value} disabled={choice.loading} onChange={(e) => choice.setValue(e.target.value)}>
+        {REMIND_OPTIONS.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.text}
+          </option>
+        ))}
+      </select>
+      {choice.value === "at" && (
+        <label className="field">
+          Remind me at
+          <input type="datetime-local" value={choice.at} onChange={(e) => choice.setAt(e.target.value)} />
+        </label>
+      )}
+      {needsDue && <p className="muted">Give the card a due date for this one.</p>}
+      {choice.value === "due" && hasDue && <p className="muted">A due date without a time reminds you at 9 in the morning.</p>}
+      {when && choice.value === choiceOf(choice.reminder) && (
+        <p className="muted">
+          Next reminder: {when.toLocaleString(undefined, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
+        </p>
+      )}
+    </div>
   );
 }

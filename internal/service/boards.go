@@ -80,6 +80,7 @@ type Boards struct {
 	st     *store.Store
 	now    func() time.Time
 	notify Notifier
+	push   Pusher
 }
 
 func NewBoards(st *store.Store, now func() time.Time) *Boards {

@@ -678,6 +678,12 @@ func (s *Boards) UpdateCard(ctx context.Context, userID, cardID string, p CardPa
 		if err != nil {
 			return err
 		}
+		// Reminders follow the due date (§3.9).
+		if row.DueAt != c.DueAt || row.DueHasTime != c.DueHasTime {
+			if err := s.rescheduleReminders(ctx, q, row); err != nil {
+				return err
+			}
+		}
 
 		movedBoards := row.BoardID != c.BoardID
 		if movedBoards && p.LabelIDs == nil {

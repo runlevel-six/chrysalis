@@ -11,10 +11,11 @@ import { Link, navigate, usePath } from "./router";
 import { BoardPage } from "./board/BoardPage";
 import { BoardDrawers, BoardTile } from "./Boards";
 import { CalendarPage } from "./Calendar";
+import { NotificationsButton } from "./Notifications";
 import { SettingsPage, useBrandingThemes } from "./Settings";
 import { rememberReturn } from "./BackLink";
 import { CenteringPage } from "./CenteringSettings";
-import { applyAppearance, DEFAULT_PREFS, watchSystem } from "./appearance";
+import { applyAppearance, DEFAULT_PREFS, deviceTimeZone, watchSystem } from "./appearance";
 import { Dialog, Icon } from "./ui";
 import { useLiveSync } from "./live";
 import { useOffline } from "./offline";
@@ -56,6 +57,13 @@ export function App() {
     }
     markLanded();
   }, [me.data]);
+
+  // Reminders use the person's time zone; keep it current as they travel.
+  useEffect(() => {
+    const p = me.data?.prefs;
+    const tz = deviceTimeZone();
+    if (p?.remindersEnabled && tz && p.timeZone !== tz) void api.updatePrefs({ timeZone: tz }).catch(() => {});
+  }, [me.data?.prefs?.remindersEnabled, me.data?.prefs?.timeZone]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Appearance follows the person's preferences, and the system for "match
   // this device" (§3.5, §3.12).
@@ -104,6 +112,7 @@ export function App() {
         </Link>
         {me.data && (
           <span className="header-right">
+            <NotificationsButton enabled={!!me.data.prefs?.remindersEnabled} />
             <Link to="/calendar" className="header-link" aria-label="Calendar" title="Calendar" onClick={() => rememberReturn("calendar")}>
               <Icon.Calendar />
             </Link>

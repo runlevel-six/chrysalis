@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api, type User } from "./api";
-import { BUILT_IN_THEMES, DEFAULT_PREFS, type Prefs, type Theme } from "./appearance";
+import { BUILT_IN_THEMES, DEFAULT_PREFS, deviceTimeZone, type Prefs, type Theme } from "./appearance";
 import { useUndo } from "./undo";
 import { BackLink } from "./BackLink";
 import { CenteringSection } from "./CenteringSettings";
@@ -72,7 +72,7 @@ export function SettingsPage() {
   // Local copy so controls respond on the click itself; the shared cache
   // (and the server) catch up a tick later.
   const [prefs, setPrefs] = useState(saved);
-  useEffect(() => setPrefs(saved), [saved.theme, saved.mode, saved.density, saved.motion, saved.completionFlutter, saved.highlightOverdue]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => setPrefs(saved), [saved.theme, saved.mode, saved.density, saved.motion, saved.completionFlutter, saved.highlightOverdue, saved.remindersEnabled]); // eslint-disable-line react-hooks/exhaustive-deps
   const set = (patch: Partial<Prefs>) => {
     setPrefs((p) => ({ ...p, ...patch }));
     save(patch);
@@ -162,6 +162,22 @@ export function SettingsPage() {
           <input type="checkbox" checked={prefs.highlightOverdue} onChange={(e) => set({ highlightOverdue: e.target.checked })} />
           Mark cards that are past their due date (off unless you want it)
         </label>
+      </div>
+
+      <div className="settings-section">
+        <h2>Reminders</h2>
+        <label className="check">
+          <input
+            type="checkbox"
+            checked={prefs.remindersEnabled}
+            onChange={(e) => set({ remindersEnabled: e.target.checked, timeZone: deviceTimeZone() })}
+          />
+          Remind me about cards I choose
+        </label>
+        <p className="muted">
+          Nothing reminds you unless you ask: once this is on, choose <strong>Remind me</strong> in a card's dates.
+          Reminders show under the bell at the top of the page.
+        </p>
       </div>
 
       <CenteringSection />

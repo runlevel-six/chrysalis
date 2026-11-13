@@ -22,6 +22,8 @@ export type Prefs = {
   motion: "system" | "reduce" | "allow";
   completionFlutter: boolean;
   highlightOverdue: boolean;
+  remindersEnabled: boolean;
+  timeZone: string;
 };
 
 export const DEFAULT_PREFS: Prefs = {
@@ -31,6 +33,17 @@ export const DEFAULT_PREFS: Prefs = {
   motion: "system",
   completionFlutter: true,
   highlightOverdue: false,
+  remindersEnabled: false,
+  timeZone: "",
+};
+
+/** This device's IANA time zone, for reminders and "today". */
+export const deviceTimeZone = () => {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || "";
+  } catch {
+    return "";
+  }
 };
 
 export const BUILT_IN_THEMES: Theme[] = [defaultTheme, gardenTheme];

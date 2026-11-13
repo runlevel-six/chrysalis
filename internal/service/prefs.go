@@ -22,6 +22,10 @@ type Prefs struct {
 	Motion            string `json:"motion"`  // system | reduce | allow
 	CompletionFlutter bool   `json:"completionFlutter"`
 	HighlightOverdue  bool   `json:"highlightOverdue"`
+	// RemindersEnabled turns reminders on (§3.9); off by default.
+	RemindersEnabled bool `json:"remindersEnabled"`
+	// TimeZone is the person's IANA zone, as their browser reports it.
+	TimeZone string `json:"timeZone"`
 }
 
 // DefaultPrefs follow calm-by-default (§3.6).
@@ -50,6 +54,7 @@ func (p *PrefsService) Get(ctx context.Context, userID string) (Prefs, error) {
 	return Prefs{
 		Theme: row.Theme, Mode: row.Mode, Density: row.Density, Motion: row.Motion,
 		CompletionFlutter: row.CompletionFlutter != 0, HighlightOverdue: row.HighlightOverdue != 0,
+		RemindersEnabled: row.RemindersEnabled != 0, TimeZone: row.TimeZone,
 	}, nil
 }
 
@@ -61,6 +66,8 @@ type PrefsPatch struct {
 	Motion            *string `json:"motion"`
 	CompletionFlutter *bool   `json:"completionFlutter"`
 	HighlightOverdue  *bool   `json:"highlightOverdue"`
+	RemindersEnabled  *bool   `json:"remindersEnabled"`
+	TimeZone          *string `json:"timeZone"`
 }
 
 func (p *PrefsService) Update(ctx context.Context, userID string, patch PrefsPatch) (Prefs, error) {
@@ -99,6 +106,16 @@ func (p *PrefsService) Update(ctx context.Context, userID string, patch PrefsPat
 	if patch.HighlightOverdue != nil {
 		cur.HighlightOverdue = *patch.HighlightOverdue
 	}
+	if patch.RemindersEnabled != nil {
+		cur.RemindersEnabled = *patch.RemindersEnabled
+	}
+	if patch.TimeZone != nil {
+		tz, ok := cleanZone(*patch.TimeZone)
+		if !ok {
+			return Prefs{}, &ValidationError{"That time zone isn't known."}
+		}
+		cur.TimeZone = tz
+	}
 	b2i := func(b bool) int64 {
 		if b {
 			return 1
@@ -108,6 +125,7 @@ func (p *PrefsService) Update(ctx context.Context, userID string, patch PrefsPat
 	_, err = p.st.UpsertPrefs(ctx, db.UpsertPrefsParams{
 		UserID: userID, Theme: cur.Theme, Mode: cur.Mode, Density: cur.Density, Motion: cur.Motion,
 		CompletionFlutter: b2i(cur.CompletionFlutter), HighlightOverdue: b2i(cur.HighlightOverdue),
+		RemindersEnabled: b2i(cur.RemindersEnabled), TimeZone: cur.TimeZone,
 		UpdatedAt: store.FormatTime(p.b.now()),
 	})
 	if err == nil {

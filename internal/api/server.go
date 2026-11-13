@@ -56,12 +56,18 @@ type Deps struct {
 	Branding branding.Branding
 	// Hub carries live-sync notices; nil gets a private one (tests).
 	Hub *sse.Hub
-	Log *slog.Logger
+	// Boards is the content service, shared with background jobs such as
+	// reminders; nil makes one (tests).
+	Boards *service.Boards
+	Log    *slog.Logger
 }
 
 func NewHandler(d Deps) http.Handler {
 	cfg, st, authn, static, log := d.Config, d.Store, d.Auth, d.Static, d.Log
-	boards := service.NewBoards(st, time.Now)
+	boards := d.Boards
+	if boards == nil {
+		boards = service.NewBoards(st, time.Now)
+	}
 	hub := d.Hub
 	if hub == nil {
 		hub = sse.NewHub()
@@ -80,6 +86,7 @@ func NewHandler(d Deps) http.Handler {
 	protected.HandleFunc("POST /api/v1/boards", s.createBoard)
 	protected.HandleFunc("GET /api/v1/boards/{id}", s.getBoard)
 	s.registerContent(protected)
+	s.registerReminders(protected)
 	s.registerAttachments(protected)
 	s.registerImports(protected)
 	s.registerCentering(protected)

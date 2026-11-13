@@ -99,6 +99,12 @@ export const Icon = {
   ),
   Close: svg(<path d="M18 6 6 18M6 6l12 12" />),
   Check: svg(<path d="M20 6 9 17l-5-5" />),
+  Bell: svg(
+    <>
+      <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+      <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+    </>,
+  ),
   Trash: svg(<path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14" />),
   Bold: svg(<path d="M7 5h6a3.5 3.5 0 0 1 0 7H7zM7 12h7a3.5 3.5 0 0 1 0 7H7z" />),
   Italic: svg(<path d="M19 4h-9M14 20H5M15 4 9 20" />),
