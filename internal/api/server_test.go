@@ -34,6 +34,7 @@ func newTestServer(t *testing.T) (http.Handler, *store.Store) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	cfg.Version = "test-1.2.3"
 	st, err := store.Open(context.Background(), filepath.Join(t.TempDir(), "test.db"))
 	if err != nil {
 		t.Fatal(err)
@@ -85,9 +86,15 @@ func TestMeAndSecurityHeaders(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("me = %d", w.Code)
 	}
-	var u auth.User
+	var u struct {
+		auth.User
+		Version string `json:"version"`
+	}
 	if err := json.Unmarshal(w.Body.Bytes(), &u); err != nil || u.ID == "" || u.Email != "dev@example.com" {
 		t.Fatalf("me body = %s (%v)", w.Body, err)
+	}
+	if u.Version != "test-1.2.3" {
+		t.Errorf("version = %q", u.Version)
 	}
 	csp := w.Header().Get("Content-Security-Policy")
 	if !strings.Contains(csp, "default-src 'self'") || !strings.Contains(csp, "frame-ancestors 'none'") {

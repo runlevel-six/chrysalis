@@ -43,6 +43,7 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("configuration:\n%w", err)
 	}
+	cfg.Version = version
 	log := newLogger(cfg.LogLevel)
 
 	// ctx is cancelled on SIGINT/SIGTERM (Kubernetes sends SIGTERM on shutdown).

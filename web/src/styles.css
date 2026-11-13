@@ -1368,3 +1368,14 @@ select {
 .filter-label.is-on {
   border-color: var(--text);
 }
+
+.header-right {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.75rem;
+}
+
+.app-version {
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}

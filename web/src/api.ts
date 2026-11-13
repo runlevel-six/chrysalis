@@ -3,7 +3,7 @@
 
 // Typed wrappers around the /api/v1 endpoints.
 
-export type User = { id: string; email: string; displayName: string; lastBoardId?: string };
+export type User = { id: string; email: string; displayName: string; lastBoardId?: string; version?: string };
 
 export type Board = {
   id: string;

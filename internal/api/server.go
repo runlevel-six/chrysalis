@@ -106,7 +106,8 @@ func (s *server) me(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, struct {
 		auth.User
 		LastBoardID string `json:"lastBoardId,omitempty"`
-	}{u, last})
+		Version     string `json:"version"`
+	}{u, last, s.cfg.Version})
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {

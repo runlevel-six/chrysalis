@@ -67,7 +67,17 @@ export function App() {
           <img src={markUrl} alt="" width="28" height="28" className="app-mark" />
           Chrysalis
         </Link>
-        {me.data && <span className="muted">{me.data.displayName}</span>}
+        {me.data && (
+          <span className="header-right">
+            <span className="muted">{me.data.displayName}</span>
+            {/* Which build is running, to confirm a deploy at a glance. */}
+            {me.data.version && (
+              <span className="app-version muted" title="App version">
+                {/^\d/.test(me.data.version) ? `v${me.data.version}` : me.data.version}
+              </span>
+            )}
+          </span>
+        )}
       </header>
       <main className={boardMatch ? "is-board" : undefined}>{page}</main>
     </>

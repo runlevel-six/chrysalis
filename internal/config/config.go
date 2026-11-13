@@ -37,6 +37,9 @@ type Config struct {
 	MaxUploadBytes int64
 	// StorageBackend is where attachments live: "local" (under DataDir).
 	StorageBackend string
+	// Version is the build's version (set by main from -ldflags, not the
+	// environment), shown in the app so it's easy to confirm what's deployed.
+	Version string
 
 	OIDC           OIDC
 	Header         Header
