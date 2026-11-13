@@ -158,7 +158,10 @@ export function CardItem({
           )}
         </div>
       )}
-      {expanded && (
+      {/* While dragged, the placeholder shows just the title: a tall expanded
+          card reflowing the columns under the pointer makes the drop target
+          flip back and forth. */}
+      {expanded && !isDragging && (
         <div className="card-expanded">
           {/* Actions sit right under the title so they stay in reach however long
               the description and checklists get. */}

@@ -1256,6 +1256,11 @@ select {
   color: var(--text-muted);
 }
 
+.attachment-add .attachment-hint {
+  flex-basis: 100%;
+  padding-left: 0.5rem;
+}
+
 .link-attach-form {
   display: flex;
   flex-direction: column;

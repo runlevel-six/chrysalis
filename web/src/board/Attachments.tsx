@@ -183,7 +183,8 @@ export function Attachments({
           <button type="button" className="text-button" onClick={() => setLinking((v) => !v)}>
             <Icon.Link /> Add a link
           </button>
-          <span className="muted attachment-hint">or drop files here</span>
+          {/* About both buttons, so on its own line rather than beside one. */}
+          <span className="muted attachment-hint">You can also drop files onto the card.</span>
         </div>
       )}
       {linking && <LinkForm card={card} onDone={() => setLinking(false)} />}

@@ -99,6 +99,7 @@ export function BoardPage({
   // can preview their new column before the drop is committed.
   const [dragItems, setDragItems] = useState<Containers | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
+  const movedThisFrame = useRef(false);
   // Hold other devices' changes while a card is in the air.
   useEffect(() => (activeId ? holdSync() : undefined), [activeId]);
 
@@ -280,6 +281,12 @@ export function BoardPage({
     const from = findContainer(dragItems, active.id);
     const to = findContainer(dragItems, over.id);
     if (!from || !to || from === to) return;
+    // Move between columns at most once per frame. Moving reflows the
+    // columns, which can put the pointer back over the old one; without this
+    // the card bounces between them until React gives up.
+    if (movedThisFrame.current) return;
+    movedThisFrame.current = true;
+    requestAnimationFrame(() => requestAnimationFrame(() => (movedThisFrame.current = false)));
     setDragItems((cur) => {
       if (!cur) return cur;
       const src = cur[from].filter((x) => x !== active.id);
@@ -296,10 +303,18 @@ export function BoardPage({
     setActiveId(null);
     setDragItems(null);
     if (!card || !over || !final) return;
-    const col = findContainer(final, active.id);
+    let col = findContainer(final, active.id);
     if (!col) return;
     const overCol = findContainer(final, over.id);
-    if (overCol === col && !String(over.id).startsWith("col:")) {
+    if (overCol && overCol !== col) {
+      // A column switch onDragOver held back (once per frame) and the pointer
+      // stopped there: finish it now, so the card lands where it was dropped.
+      const dst = final[overCol].filter((x) => x !== active.id);
+      const at = dst.indexOf(String(over.id));
+      dst.splice(at >= 0 ? at : dst.length, 0, String(active.id));
+      final = { ...final, [col]: final[col].filter((x) => x !== active.id), [overCol]: dst };
+      col = overCol;
+    } else if (overCol === col && !String(over.id).startsWith("col:")) {
       const ids = final[col];
       final = { ...final, [col]: arrayMove(ids, ids.indexOf(String(active.id)), ids.indexOf(String(over.id))) };
     }

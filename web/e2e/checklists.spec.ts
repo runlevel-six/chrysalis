@@ -117,3 +117,47 @@ test("no serious accessibility issues with a checklist open", async ({ page }) =
   await c.getByRole("checkbox", { name: "One" }).check();
   await expectAccessible(page, "checklist");
 });
+
+// Regression: dragging a tall, expanded card across columns into a done
+// column used to make the drop target flip back and forth until React gave
+// up (a blank page).
+test("drag an expanded card with a checklist into a done column", async ({ page }) => {
+  test.skip(!!test.info().project.use.hasTouch, "mouse drag");
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  await newBoard(page, ["Egg", "Caterpillar", "Chrysalis", "Imago"]);
+  await addCards(page, "Egg", ["Tall card"]);
+  const c = card(page, "Tall card");
+  await c.getByRole("button", { name: "Expand card" }).click();
+  await c.getByRole("button", { name: "Add a checklist" }).click();
+  const input = c.getByLabel("New checklist item");
+  for (const t of ["One", "Two", "Three"]) {
+    await input.fill(t);
+    await input.press("Enter");
+  }
+  await input.press("Escape");
+  await page.getByRole("button", { name: "Imago options" }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("checkbox", { name: "Cards here count as done" }).check();
+  await dialog.getByRole("button", { name: "Close" }).click();
+  await addCards(page, "Imago", ["Already finished"]);
+  // Like opening the board fresh, with the card remembered as expanded.
+  await page.setViewportSize({ width: 1400, height: 800 });
+  await page.waitForTimeout(700); // the expanded state is saved
+  await page.reload();
+  await expect(c.getByRole("checkbox", { name: "Three" })).toBeVisible();
+
+  const from = await c.boundingBox();
+  const to = await column(page, "Imago").boundingBox();
+  await page.mouse.move(from!.x + 40, from!.y + 15);
+  await page.mouse.down();
+  await page.mouse.move(from!.x + 60, from!.y + 30, { steps: 5 });
+  await page.mouse.move(to!.x + to!.width / 2, to!.y + 80, { steps: 20 });
+  await page.waitForTimeout(200);
+  await page.mouse.up();
+
+  await expect.poll(() => cardTitles(page, "Imago")).toContain("Tall card");
+  await page.waitForTimeout(500);
+  expect(errors).toEqual([]);
+  await expect(card(page, "Tall card")).toBeVisible();
+});
