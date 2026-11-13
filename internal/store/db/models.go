@@ -118,6 +118,17 @@ type Column struct {
 	Version      int64
 }
 
+type Comment struct {
+	ID        string
+	CardID    string
+	AuthorID  string
+	BodyJson  string
+	CreatedAt string
+	UpdatedAt string
+	DeletedAt sql.NullString
+	Version   int64
+}
+
 type Label struct {
 	ID        string
 	BoardID   string

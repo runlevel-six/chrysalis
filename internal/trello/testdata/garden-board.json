@@ -1,0 +1,202 @@
+{
+  "id": "board-garden",
+  "name": "Garden Plans",
+  "desc": "",
+  "closed": false,
+  "prefs": {
+    "background": "green",
+    "backgroundColor": "#519839",
+    "backgroundImage": null
+  },
+  "labels": [
+    { "id": "label-veg", "idBoard": "board-garden", "name": "Vegetables", "color": "green" },
+    { "id": "label-herbs", "idBoard": "board-garden", "name": "Herbs", "color": "lime" },
+    { "id": "label-urgent", "idBoard": "board-garden", "name": "Before frost", "color": "red_dark" },
+    { "id": "label-shade", "idBoard": "board-garden", "name": "", "color": "sky_light" },
+    { "id": "label-tools", "idBoard": "board-garden", "name": "Tools", "color": "black" },
+    { "id": "label-someday", "idBoard": "board-garden", "name": "Someday", "color": null },
+    { "id": "label-flowers", "idBoard": "board-garden", "name": "Flowers", "color": "purple" }
+  ],
+  "lists": [
+    { "id": "list-todo", "name": "To plant", "closed": false, "pos": 32768 },
+    { "id": "list-ideas", "name": "Ideas", "closed": false, "pos": 16384 },
+    { "id": "list-growing", "name": "Growing", "closed": false, "pos": 49152 },
+    { "id": "list-harvested", "name": "Harvested", "closed": false, "pos": 65536 },
+    { "id": "list-last-year", "name": "Last year", "closed": true, "pos": 8192 }
+  ],
+  "cards": [
+    {
+      "id": "card-tomatoes",
+      "name": "Start tomato seeds",
+      "desc": "## Plan\n\nStart **six** trays of *Roma* and _cherry_ tomatoes.\nKeep them warm.\n\n- Soak seeds overnight\n- Sow `1/4 inch` deep\n  1. Water lightly\n  2. Cover with a dome\n\nSee [the seed list](https://example.com/seeds \"Seeds\").",
+      "due": "2026-03-15T17:00:00.000Z",
+      "start": "2026-03-01T12:00:00.000Z",
+      "dueComplete": false,
+      "dueReminder": -1,
+      "closed": false,
+      "idList": "list-todo",
+      "idLabels": ["label-veg", "label-urgent", "label-unknown"],
+      "idMembers": ["member-alice"],
+      "idChecklists": ["checklist-supplies", "checklist-steps"],
+      "pos": 2048,
+      "cover": { "color": "red", "idAttachment": null, "idUploadedBackground": null, "size": "normal" },
+      "attachments": [
+        { "id": "att-catalog", "name": "Seed catalog", "url": "https://example.com/catalog/tomatoes", "isUpload": false },
+        { "id": "att-chart", "name": "planting-chart.pdf", "url": "https://example.com/uploads/planting-chart.pdf", "isUpload": true, "mimeType": "application/pdf" },
+        { "id": "att-local", "name": "notes on my laptop", "url": "file:///home/alice/notes.txt", "isUpload": false }
+      ],
+      "customFieldItems": [],
+      "pluginData": []
+    },
+    {
+      "id": "card-basil",
+      "name": "Sow basil",
+      "desc": "> Basil hates the cold.\n\n```\nwater: every 2 days\nsun:   6 hours\n```\n\n---\n\nThen ~~repot~~ thin them.",
+      "due": null,
+      "start": null,
+      "dueComplete": false,
+      "closed": false,
+      "idList": "list-todo",
+      "idLabels": ["label-herbs", "label-shade"],
+      "pos": 1024,
+      "cover": { "color": null, "idAttachment": null, "idUploadedBackground": null },
+      "attachments": []
+    },
+    {
+      "id": "card-beds",
+      "name": "Build raised beds",
+      "desc": "",
+      "due": "2026-02-01T00:00:00.000Z",
+      "start": null,
+      "dueComplete": true,
+      "closed": false,
+      "idList": "list-harvested",
+      "idLabels": ["label-tools"],
+      "pos": 16384,
+      "cover": { "color": null, "idAttachment": "att-bed-photo", "idUploadedBackground": null },
+      "attachments": [
+        { "id": "att-bed-photo", "name": "bed-photo.jpg", "url": "https://example.com/uploads/bed-photo.jpg", "isUpload": true, "mimeType": "image/jpeg" }
+      ]
+    },
+    {
+      "id": "card-compost",
+      "name": "Turn the compost",
+      "desc": "Every *two* weeks.",
+      "due": null,
+      "start": null,
+      "dueComplete": false,
+      "closed": true,
+      "idList": "list-growing",
+      "idLabels": [],
+      "pos": 16384,
+      "cover": { "color": "black" },
+      "customFieldItems": [{ "id": "cfi-1", "idCustomField": "cf-sun", "value": { "number": "6" } }],
+      "pluginData": [{ "id": "plugin-card-1", "idPlugin": "plugin-weather", "value": "{\"zone\":\"7b\"}" }]
+    },
+    {
+      "id": "card-garlic",
+      "name": "Plant garlic",
+      "desc": "",
+      "closed": false,
+      "idList": "list-last-year",
+      "idLabels": ["label-veg", "label-veg"],
+      "pos": 16384
+    },
+    {
+      "id": "card-peas",
+      "name": "  Peas along the fence  ",
+      "desc": "",
+      "due": "2026-05-01T16:00:00.000Z",
+      "start": "2026-05-10T16:00:00.000Z",
+      "dueReminder": 1440,
+      "dueComplete": false,
+      "closed": false,
+      "idList": "list-ideas",
+      "idLabels": ["label-someday", "label-flowers"],
+      "pos": 16384,
+      "coordinates": { "latitude": 0, "longitude": 0 },
+      "address": "Back fence"
+    },
+    {
+      "id": "card-lost",
+      "name": "A card from a list that isn't here",
+      "idList": "list-missing",
+      "pos": 1
+    }
+  ],
+  "checklists": [
+    {
+      "id": "checklist-supplies",
+      "name": "Supplies",
+      "idCard": "card-tomatoes",
+      "pos": 32768,
+      "checkItems": [
+        { "id": "item-trays", "name": "Seed trays", "state": "complete", "pos": 16384 },
+        { "id": "item-mix", "name": "Potting mix", "state": "incomplete", "pos": 32768, "due": "2026-02-20T17:00:00.000Z", "idMember": "member-bob" },
+        { "id": "item-light", "name": "Grow light", "state": "complete", "pos": 8192 }
+      ]
+    },
+    {
+      "id": "checklist-steps",
+      "name": "Steps",
+      "idCard": "card-tomatoes",
+      "pos": 16384,
+      "checkItems": [
+        { "id": "item-soak", "name": "Soak the seeds", "state": "incomplete", "pos": 16384 }
+      ]
+    },
+    {
+      "id": "checklist-lumber",
+      "name": "",
+      "idCard": "card-beds",
+      "pos": 16384,
+      "checkItems": [
+        { "id": "item-boards", "name": "Cedar boards", "state": "complete", "pos": 1 },
+        { "id": "item-blank", "name": "   ", "state": "incomplete", "pos": 2 }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "id": "action-4",
+      "type": "commentCard",
+      "date": "2026-03-03T09:30:00.000Z",
+      "data": { "text": "Seeds arrived! **Twelve** varieties.", "card": { "id": "card-tomatoes", "name": "Start tomato seeds" } },
+      "memberCreator": { "id": "member-alice", "fullName": "Alice", "username": "alice" }
+    },
+    {
+      "id": "action-3",
+      "type": "updateCard",
+      "date": "2026-03-02T10:00:00.000Z",
+      "data": { "card": { "id": "card-tomatoes" }, "old": { "idList": "list-ideas" } },
+      "memberCreator": { "id": "member-bob", "fullName": "Bob", "username": "bob" }
+    },
+    {
+      "id": "action-2",
+      "type": "commentCard",
+      "date": "2026-03-01T08:00:00.000Z",
+      "data": { "text": "Ordered them from the usual place.", "card": { "id": "card-tomatoes" } },
+      "memberCreator": { "id": "member-bob", "fullName": "", "username": "bob" }
+    },
+    {
+      "id": "action-1",
+      "type": "commentCard",
+      "date": "2025-10-20T15:00:00.000Z",
+      "data": { "text": "Planted 30 cloves.", "card": { "id": "card-garlic" } },
+      "memberCreator": { "id": "member-alice", "fullName": "Alice", "username": "alice" }
+    },
+    {
+      "id": "action-0",
+      "type": "createCard",
+      "date": "2025-10-01T15:00:00.000Z",
+      "data": { "card": { "id": "card-garlic" } },
+      "memberCreator": { "id": "member-alice", "fullName": "Alice", "username": "alice" }
+    }
+  ],
+  "members": [
+    { "id": "member-alice", "fullName": "Alice", "username": "alice" },
+    { "id": "member-bob", "fullName": "Bob", "username": "bob" }
+  ],
+  "pluginData": [{ "id": "plugin-board-1", "idPlugin": "plugin-weather", "value": "{}" }],
+  "customFields": [{ "id": "cf-sun", "name": "Sun hours", "type": "number" }]
+}

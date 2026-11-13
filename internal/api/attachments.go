@@ -51,6 +51,14 @@ func (s *server) uploadBackground(w http.ResponseWriter, r *http.Request) {
 // hands it to store, answering 201 with what store returns.
 func (s *server) receiveFile(w http.ResponseWriter, r *http.Request, store func(name string, data []byte) (any, error)) {
 	limit := s.cfg.MaxUploadBytes
+	s.receiveFileWithin(w, r, limit, func() {
+		auth.WriteError(w, http.StatusRequestEntityTooLarge, fmt.Sprintf("That file is too big to attach (the limit is %d MB).", limit>>20))
+	}, store)
+}
+
+// receiveFileWithin is receiveFile with its own size limit, calling tooLarge
+// to answer an upload over it.
+func (s *server) receiveFileWithin(w http.ResponseWriter, r *http.Request, limit int64, tooLarge func(), store func(name string, data []byte) (any, error)) {
 	// Room for the multipart framing around the file itself.
 	r.Body = http.MaxBytesReader(w, r.Body, limit+64<<10)
 	mr, err := r.MultipartReader()
@@ -66,7 +74,7 @@ func (s *server) receiveFile(w http.ResponseWriter, r *http.Request, store func(
 		}
 		var tooBig *http.MaxBytesError
 		if errors.As(err, &tooBig) {
-			tooLarge(w, limit)
+			tooLarge()
 			return
 		}
 		if err != nil {
@@ -79,7 +87,7 @@ func (s *server) receiveFile(w http.ResponseWriter, r *http.Request, store func(
 		// Read one byte past the limit to tell "exactly at" from "over".
 		data, err := io.ReadAll(io.LimitReader(part, limit+1))
 		if errors.As(err, &tooBig) || int64(len(data)) > limit {
-			tooLarge(w, limit)
+			tooLarge()
 			return
 		}
 		if err != nil {
@@ -94,10 +102,6 @@ func (s *server) receiveFile(w http.ResponseWriter, r *http.Request, store func(
 		writeJSON(w, http.StatusCreated, out)
 		return
 	}
-}
-
-func tooLarge(w http.ResponseWriter, limit int64) {
-	auth.WriteError(w, http.StatusRequestEntityTooLarge, fmt.Sprintf("That file is too big to attach (the limit is %d MB).", limit>>20))
 }
 
 func (s *server) addLink(w http.ResponseWriter, r *http.Request) {
