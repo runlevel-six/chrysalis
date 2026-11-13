@@ -36,7 +36,7 @@ export type CardActions = {
 };
 
 /** What the board shares with every card: its labels and display settings. */
-export type CardContext = { labels: Label[]; settings: BoardSettings };
+export type CardContext = { labels: Label[]; settings: BoardSettings; highlightOverdue: boolean };
 
 export function CardItem({
   card,
@@ -150,7 +150,7 @@ export function CardItem({
         // Optional extras on collapsed cards; all off by default (§3.2).
         <div className="card-extras">
           {ctx.settings.showLabels && <LabelDots labels={ctx.labels.filter((l) => card.labelIds.includes(l.id))} />}
-          {ctx.settings.showDueDate && <DueText card={card} />}
+          {ctx.settings.showDueDate && <DueText card={card} highlightOverdue={ctx.highlightOverdue} />}
           {ctx.settings.showChecklist && card.checklistTotal > 0 && (
             <span className="checklist-count" aria-label={`Checklist: ${card.checklistDone} of ${card.checklistTotal} done`}>
               <Icon.Check width={14} height={14} /> {card.checklistDone}/{card.checklistTotal}
@@ -176,6 +176,7 @@ export function CardItem({
               {/* Less frequent actions stay out of the way (§3.6). */}
               <Menu
                 label="More"
+                iconOnly
                 icon={<Icon.More />}
                 items={[
                   { label: "Cover…", onSelect: () => actions.cover(card) },

@@ -9,6 +9,9 @@ import markUrl from "./art/mark-small.svg";
 import emptyStateSvg from "./art/empty-state.svg?raw";
 import { Link, navigate, usePath } from "./router";
 import { BoardPage } from "./board/BoardPage";
+import { SettingsPage, useBrandingThemes } from "./Settings";
+import { applyAppearance, DEFAULT_PREFS, watchSystem } from "./appearance";
+import { Icon } from "./ui";
 
 // Opening the app lands where you left off (§3.3): the first time a tab
 // loads "/", it goes to the last board you had open. Reloads and later
@@ -43,6 +46,25 @@ export function App() {
     markLanded();
   }, [me.data]);
 
+  // Appearance follows the person's preferences, and the system for "match
+  // this device" (§3.5, §3.12).
+  const themes = useBrandingThemes();
+  const prefs = me.data?.prefs;
+  useEffect(() => {
+    const apply = () => applyAppearance({ ...DEFAULT_PREFS, ...(prefs ?? {}) }, themes);
+    apply();
+    return watchSystem(apply);
+  }, [prefs, themes]);
+
+  // Branding: the deployment's name and icon replace Chrysalis's own.
+  const branding = useQuery({ queryKey: ["branding"], queryFn: api.branding, staleTime: Infinity });
+  const appName = me.data?.appName || "Chrysalis";
+  const iconUrl = branding.data?.hasIcon ? "/branding/icon" : markUrl;
+  useEffect(() => {
+    if (!branding.data?.hasIcon) return;
+    document.querySelectorAll<HTMLLinkElement>('link[rel="icon"]').forEach((l) => (l.href = "/branding/icon"));
+  }, [branding.data?.hasIcon]);
+
   if (me.error instanceof ApiError && me.error.status === 401) {
     return <SignedOut />;
   }
@@ -50,6 +72,7 @@ export function App() {
   const boardMatch = path.match(/^\/b\/([^/]+)$/);
   let page;
   if (path === "/") page = <BoardList />;
+  else if (path === "/settings") page = <SettingsPage />;
   else if (boardMatch)
     page = (
       <BoardPage
@@ -64,11 +87,14 @@ export function App() {
     <>
       <header className="app-header">
         <Link to="/" className="app-name">
-          <img src={markUrl} alt="" width="28" height="28" className="app-mark" />
-          Chrysalis
+          <img src={iconUrl} alt="" width="28" height="28" className="app-mark" />
+          {appName}
         </Link>
         {me.data && (
           <span className="header-right">
+            <Link to="/settings" className="header-link" aria-label="Settings">
+              <Icon.Settings />
+            </Link>
             <span className="muted">{me.data.displayName}</span>
             {/* Which build is running, to confirm a deploy at a glance. */}
             {me.data.version && (

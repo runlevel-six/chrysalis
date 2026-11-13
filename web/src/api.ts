@@ -3,7 +3,18 @@
 
 // Typed wrappers around the /api/v1 endpoints.
 
-export type User = { id: string; email: string; displayName: string; lastBoardId?: string; version?: string };
+import type { Prefs, Theme } from "./appearance";
+
+export type User = {
+  id: string;
+  email: string;
+  displayName: string;
+  lastBoardId?: string;
+  version?: string;
+  prefs?: Prefs;
+  /** The deployment's product name, when its branding sets one. */
+  appName?: string;
+};
 
 export type Board = {
   id: string;
@@ -171,6 +182,8 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
 }
 
 export const api = {
+  branding: () => request<{ displayName: string; themes: Theme[]; hasIcon: boolean }>("GET", "/branding"),
+  updatePrefs: (patch: Partial<Prefs>) => request<Prefs>("PATCH", "/me/prefs", patch),
   me: () => request<User>("GET", "/me"),
   listBoards: () => request<{ boards: Board[] }>("GET", "/boards").then((r) => r.boards),
   getBoard: (id: string) => request<Board>("GET", `/boards/${encodeURIComponent(id)}`),

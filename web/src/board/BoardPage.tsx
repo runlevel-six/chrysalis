@@ -1,7 +1,7 @@
 // Copyright 2026 Jason Hall
 // SPDX-License-Identifier: Apache-2.0
 
-import { Suspense, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from "react";
 import { useIsMutating, useQuery } from "@tanstack/react-query";
 import {
   DndContext,
@@ -53,6 +53,8 @@ export function BoardPage({
   empty: (text: string) => ReactNode;
   notFound: ReactNode;
 }) {
+  // Subscribed (not read once), so preference changes show immediately.
+  const me = useQuery({ queryKey: ["me"], queryFn: api.me });
   const detail = useBoardDetail(id);
   const d = detail.data;
   const actions = useBoardActions(id);
@@ -95,6 +97,31 @@ export function BoardPage({
       keyboardCodes: { start: ["KeyM"], cancel: ["Escape"], end: ["KeyM", "Space", "Enter"] },
     }),
   );
+
+  // One width for every column, from the board's width and how many columns
+  // it has, counting collapsed ones as if open. Collapsing a column then
+  // leaves space instead of resizing the others: things don't move unless
+  // you moved them (§3.6). Phones and tablets use their own CSS widths.
+  const columnsEl = useRef<HTMLDivElement>(null);
+  const [colWidth, setColWidth] = useState<number | null>(null);
+  const columnCount = d ? (view.focus.type === "column" ? 1 : d.columns.length) : 0;
+  const hasAddColumn = !!d && d.board.role !== "viewer" && view.focus.type !== "column";
+  useLayoutEffect(() => {
+    const el = columnsEl.current;
+    if (!el || !columnCount) return;
+    const measure = () => {
+      const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+      const gap = 0.75 * rem;
+      const padding = 2 * rem;
+      const addColumn = hasAddColumn ? 14 * rem + gap : 0;
+      const each = (el.clientWidth - padding - addColumn - gap * (columnCount - 1)) / columnCount;
+      setColWidth(Math.round(Math.min(40 * rem, Math.max(17 * rem, each))));
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [columnCount, hasAddColumn]);
 
   // Remember this as the board to come back to (§3.3).
   useEffect(() => {
@@ -157,7 +184,11 @@ export function BoardPage({
     },
     trash: (c) => void actions.trashCard(c),
   };
-  const ctx: CardContext = { labels: [...d.labels].sort(byPosition), settings: d.board.settings };
+  const ctx: CardContext = {
+    labels: [...d.labels].sort(byPosition),
+    settings: d.board.settings,
+    highlightOverdue: me.data?.prefs?.highlightOverdue ?? false,
+  };
 
   const columnName = (colId: string) => d.columns.find((c) => c.id === colId)?.name ?? "a column";
   const announcements: Announcements = {
@@ -329,7 +360,11 @@ export function BoardPage({
           setDragItems(null);
         }}
       >
-        <div className="columns" onFocus={(e) => {
+        <div
+          ref={columnsEl}
+          className="columns"
+          style={colWidth ? ({ "--col-width": `${colWidth}px` } as CSSProperties) : undefined}
+          onFocus={(e) => {
           const col = (e.target as HTMLElement).closest<HTMLElement>("[data-column-id]")?.dataset.columnId;
           if (col) lastColumn.current = col;
         }}>

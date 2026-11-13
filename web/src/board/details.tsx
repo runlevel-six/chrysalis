@@ -49,11 +49,25 @@ export function formatDate(value: string, hasTime: boolean): string {
   return date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: sameYear(date) ? undefined : "numeric" });
 }
 
-export function DueText({ card }: { card: Card }) {
+/**
+ * Past due and not done. A date-only due date is due all day, so it's
+ * overdue from the next local day.
+ */
+export function isOverdue(card: Card, now = new Date()): boolean {
+  if (!card.dueAt || card.completedAt) return false;
+  if (card.dueHasTime) return new Date(card.dueAt) < now;
+  const [y, m, d] = card.dueAt.split("-").map(Number);
+  return new Date(y, m - 1, d + 1) <= now;
+}
+
+/** The due date. With highlightOverdue (off unless the person turns it on, §3.6), a quiet dot marks a past-due card. */
+export function DueText({ card, highlightOverdue = false }: { card: Card; highlightOverdue?: boolean }) {
   if (!card.dueAt) return null;
+  const overdue = highlightOverdue && isOverdue(card);
   return (
-    <span className="due-text">
+    <span className={`due-text${overdue ? " is-overdue" : ""}`}>
       <Icon.Calendar width={14} height={14} /> {formatDate(card.dueAt, card.dueHasTime)}
+      {overdue && <span className="visually-hidden"> (past due)</span>}
     </span>
   );
 }

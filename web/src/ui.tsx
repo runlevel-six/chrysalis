@@ -4,7 +4,8 @@
 // Small shared UI pieces: a modal built on the native <dialog> element (which
 // handles focus trapping, Esc and restoring focus on close), and icons.
 
-import { useEffect, useId, useRef, useState, type ReactNode, type SVGProps } from "react";
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode, type SVGProps } from "react";
+import { createPortal } from "react-dom";
 
 export function Dialog({
   open,
@@ -92,6 +93,12 @@ export const Icon = {
   Italic: svg(<path d="M19 4h-9M14 20H5M15 4 9 20" />),
   BulletList: svg(<path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01" />),
   NumberedList: svg(<path d="M10 6h10M10 12h10M10 18h10M4 6h1v4M4 10h2M6 18H4c0-1 2-2 2-3s-1-1.5-2-1" />),
+  Settings: svg(
+    <>
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z" />
+    </>,
+  ),
   Eye: svg(
     <>
       <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" />
@@ -124,73 +131,127 @@ export const Icon = {
  * A small dropdown menu: a button that opens a list of actions. Arrow keys
  * move between items, Esc or a click outside closes it, and focus returns to
  * the button.
+ *
+ * The list is rendered in a portal with fixed positioning next to its
+ * button, so a scrolling column (or any overflow) can never clip it. It
+ * opens below and flips above when there isn't room, and stays on screen.
  */
-export function Menu({ label, icon, items }: { label: string; icon: ReactNode; items: { label: string; onSelect: () => void }[] }) {
+export function Menu({
+  label,
+  icon,
+  items,
+  iconOnly = false,
+}: {
+  label: string;
+  icon: ReactNode;
+  items: { label: string; onSelect: () => void }[];
+  /** Show just the icon (the label stays as its accessible name and tooltip). */
+  iconOnly?: boolean;
+}) {
   const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
   const button = useRef<HTMLButtonElement>(null);
   const list = useRef<HTMLDivElement>(null);
   const id = useId();
 
-  useEffect(() => {
+  const place = useCallback(() => {
+    const b = button.current?.getBoundingClientRect();
+    const l = list.current;
+    if (!b || !l) return;
+    const w = l.offsetWidth;
+    const h = l.offsetHeight;
+    const gap = 4;
+    const margin = 8;
+    let top = b.bottom + gap;
+    if (top + h > window.innerHeight - margin && b.top - gap - h > margin) top = b.top - gap - h;
+    // Prefer lining up with the button's right edge (menus open toward the
+    // board's middle), then keep the whole list on screen.
+    let left = b.right - w;
+    left = Math.max(margin, Math.min(left, window.innerWidth - w - margin));
+    setPos({ top, left });
+  }, []);
+
+  useLayoutEffect(() => {
     if (!open) return;
+    place();
     list.current?.querySelector<HTMLElement>("[role=menuitem]")?.focus();
     const onDown = (e: MouseEvent) => {
       if (!list.current?.contains(e.target as Node) && !button.current?.contains(e.target as Node)) setOpen(false);
     };
+    // Follow the button if the page or a column scrolls; close if it's gone.
+    const onMove = () => (button.current?.isConnected ? place() : setOpen(false));
     document.addEventListener("mousedown", onDown);
-    return () => document.removeEventListener("mousedown", onDown);
-  }, [open]);
+    window.addEventListener("scroll", onMove, true);
+    window.addEventListener("resize", onMove);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      window.removeEventListener("scroll", onMove, true);
+      window.removeEventListener("resize", onMove);
+    };
+  }, [open, place]);
 
   const close = () => {
     setOpen(false);
     button.current?.focus();
   };
 
+  // Inside a modal <dialog>, render into the dialog: the dialog sits in the
+  // top layer, above anything portalled to <body>.
+  const host = open ? (button.current?.closest("dialog") ?? document.body) : null;
+
   return (
     <div className="menu">
       <button
         ref={button}
         type="button"
-        className="text-button"
+        className={iconOnly ? "icon-button" : "text-button"}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={id}
+        aria-label={iconOnly ? label : undefined}
+        title={iconOnly ? label : undefined}
         onClick={() => setOpen((o) => !o)}
       >
-        {icon} {label}
+        {icon}
+        {!iconOnly && ` ${label}`}
       </button>
-      {open && (
-        <div
-          ref={list}
-          id={id}
-          role="menu"
-          aria-label={label}
-          className="menu-list"
-          onKeyDown={(e) => {
-            const items = [...(list.current?.querySelectorAll<HTMLElement>("[role=menuitem]") ?? [])];
-            const i = items.indexOf(document.activeElement as HTMLElement);
-            if (e.key === "Escape") close();
-            if (e.key === "ArrowDown") items[(i + 1) % items.length]?.focus();
-            if (e.key === "ArrowUp") items[(i - 1 + items.length) % items.length]?.focus();
-            if (e.key === "ArrowDown" || e.key === "ArrowUp") e.preventDefault();
-          }}
-        >
-          {items.map((it) => (
-            <button
-              key={it.label}
-              type="button"
-              role="menuitem"
-              className="menu-item"
-              onClick={() => {
-                setOpen(false);
-                it.onSelect();
-              }}
-            >
-              {it.label}
-            </button>
-          ))}
-        </div>
-      )}
+      {open &&
+        host &&
+        createPortal(
+          <div
+            ref={list}
+            id={id}
+            role="menu"
+            aria-label={label}
+            className="menu-list"
+            style={{ top: pos?.top ?? -9999, left: pos?.left ?? -9999 }}
+            onKeyDown={(e) => {
+              const items = [...(list.current?.querySelectorAll<HTMLElement>("[role=menuitem]") ?? [])];
+              const i = items.indexOf(document.activeElement as HTMLElement);
+              if (e.key === "Escape") close();
+              if (e.key === "Tab") setOpen(false);
+              if (e.key === "ArrowDown") items[(i + 1) % items.length]?.focus();
+              if (e.key === "ArrowUp") items[(i - 1 + items.length) % items.length]?.focus();
+              if (e.key === "ArrowDown" || e.key === "ArrowUp") e.preventDefault();
+            }}
+          >
+            {items.map((it) => (
+              <button
+                key={it.label}
+                type="button"
+                role="menuitem"
+                className="menu-item"
+                onClick={() => {
+                  setOpen(false);
+                  it.onSelect();
+                }}
+              >
+                {it.label}
+              </button>
+            ))}
+          </div>,
+          host,
+        )}
     </div>
   );
 }

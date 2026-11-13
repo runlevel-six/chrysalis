@@ -257,14 +257,14 @@ main.is-board {
   scroll-padding-inline: 1rem;
 }
 
-/* Columns share the width on large screens: they start at 20rem, grow up to
- * 40rem (enough for a handful of columns to fill a wide desktop, without one
- * lone column stretching into very long lines), and never shrink below
- * 17rem (beyond that the board scrolls). */
+/* Every column gets the same width, set by BoardPage as --col-width from the
+ * board's width and column count (collapsed columns counted as open, so
+ * collapsing one never resizes the others). It stays between 17rem and
+ * 40rem: wide screens fill up, a lone column keeps readable lines, and past
+ * the minimum the board scrolls. */
 .column {
-  flex: 1 1 20rem;
-  min-width: 17rem;
-  max-width: 40rem;
+  flex: 0 0 var(--col-width, 20rem);
+  min-width: 0;
   display: flex;
   flex-direction: column;
   max-height: calc(100vh - 9rem);
@@ -693,14 +693,25 @@ select {
 }
 
 /* Motion: short and purposeful, and none if the person prefers less (§3.6). */
+/* Before the app knows your preference, follow the system. Once it does
+ * (.motion-set on <html>), only .reduce-motion applies, so the in-app
+ * override can both reduce and allow motion. */
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
+  :root:not(.motion-set) *,
+  :root:not(.motion-set) *::before,
+  :root:not(.motion-set) *::after {
     transition: none !important;
     animation: none !important;
     scroll-behavior: auto !important;
   }
+}
+
+.reduce-motion *,
+.reduce-motion *::before,
+.reduce-motion *::after {
+  transition: none !important;
+  animation: none !important;
+  scroll-behavior: auto !important;
 }
 
 /* ---------- Labels, dates, menus ---------- */
@@ -863,10 +874,9 @@ select {
 }
 
 .menu-list {
-  position: absolute;
-  right: 0;
-  top: calc(100% + 0.25rem);
-  z-index: 5;
+  position: fixed; /* placed next to its button by Menu; see ui.tsx */
+  z-index: 20;
+  max-width: calc(100vw - 1rem);
   min-width: 12rem;
   display: flex;
   flex-direction: column;
@@ -879,6 +889,8 @@ select {
 
 .menu-item {
   justify-content: flex-start;
+  text-align: left;
+  white-space: nowrap;
   background: none;
   color: var(--text);
   font-weight: 500;
@@ -1397,4 +1409,120 @@ select {
 
 .template-choice .check {
   padding: 0;
+}
+
+/* ---------- Compact density ---------- */
+
+.density-compact .card-title {
+  padding-top: 0.35rem;
+  padding-bottom: 0.35rem;
+}
+
+.density-compact .card-list {
+  gap: 0.25rem;
+}
+
+.density-compact .column-name {
+  padding-top: 0.25rem;
+  padding-bottom: 0.25rem;
+}
+
+.density-compact .checklist-text {
+  padding-top: 0.25rem;
+  padding-bottom: 0.25rem;
+}
+
+.density-compact .checklist-item input[type="checkbox"] {
+  margin-top: calc(0.25rem + (1.5em - 1.25rem) / 2);
+}
+
+.density-compact .checklist-item .icon-button {
+  margin-top: calc(0.25rem + 0.75em - 22px);
+}
+
+/* ---------- Settings ---------- */
+
+.settings-section {
+  margin: 1.5rem 0;
+}
+
+.settings-section h2 {
+  font-size: 1.125rem;
+  margin: 0 0 0.5rem;
+}
+
+.theme-choices {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
+  gap: 0.75rem;
+}
+
+.theme-choice {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: var(--surface-raised);
+  color: var(--text);
+  border: 2px solid var(--border);
+  font-weight: 500;
+}
+
+.theme-choice[aria-checked="true"] {
+  border-color: var(--focus-ring);
+}
+
+.theme-preview {
+  display: flex;
+  gap: 4px;
+  height: 2.5rem;
+  padding: 4px;
+  border-radius: var(--radius);
+}
+
+.theme-preview span {
+  flex: 1;
+  border-radius: 4px;
+}
+
+.due-text.is-overdue {
+  color: var(--text);
+}
+
+.due-text.is-overdue::before {
+  content: "";
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--focus-ring);
+}
+
+.header-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  color: var(--text-muted);
+}
+
+.header-link:hover {
+  color: var(--text);
+}
+
+/* Text only screen readers hear. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Card actions sit in one row in a normal-width column. */
+.card-actions .text-button,
+.card-actions .menu > .text-button {
+  padding: 0 0.5rem;
 }
