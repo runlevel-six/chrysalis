@@ -8,6 +8,7 @@ import (
 	"database/sql"
 	"errors"
 	"slices"
+	"time"
 
 	"github.com/runlevel-six/chrysalis/internal/sse"
 	"github.com/runlevel-six/chrysalis/internal/store"
@@ -26,6 +27,10 @@ type Prefs struct {
 	RemindersEnabled bool `json:"remindersEnabled"`
 	// TimeZone is the person's IANA zone, as their browser reports it.
 	TimeZone string `json:"timeZone"`
+	// QuietStart and QuietEnd ("HH:MM", local) bound when nothing is pushed;
+	// both empty means no quiet hours.
+	QuietStart string `json:"quietStart"`
+	QuietEnd   string `json:"quietEnd"`
 }
 
 // DefaultPrefs follow calm-by-default (§3.6).
@@ -55,6 +60,7 @@ func (p *PrefsService) Get(ctx context.Context, userID string) (Prefs, error) {
 		Theme: row.Theme, Mode: row.Mode, Density: row.Density, Motion: row.Motion,
 		CompletionFlutter: row.CompletionFlutter != 0, HighlightOverdue: row.HighlightOverdue != 0,
 		RemindersEnabled: row.RemindersEnabled != 0, TimeZone: row.TimeZone,
+		QuietStart: row.QuietStart, QuietEnd: row.QuietEnd,
 	}, nil
 }
 
@@ -68,6 +74,8 @@ type PrefsPatch struct {
 	HighlightOverdue  *bool   `json:"highlightOverdue"`
 	RemindersEnabled  *bool   `json:"remindersEnabled"`
 	TimeZone          *string `json:"timeZone"`
+	QuietStart        *string `json:"quietStart"`
+	QuietEnd          *string `json:"quietEnd"`
 }
 
 func (p *PrefsService) Update(ctx context.Context, userID string, patch PrefsPatch) (Prefs, error) {
@@ -116,6 +124,18 @@ func (p *PrefsService) Update(ctx context.Context, userID string, patch PrefsPat
 		}
 		cur.TimeZone = tz
 	}
+	for _, q := range []struct {
+		v   *string
+		dst *string
+	}{{patch.QuietStart, &cur.QuietStart}, {patch.QuietEnd, &cur.QuietEnd}} {
+		if q.v == nil {
+			continue
+		}
+		if *q.v != "" && !validClock(*q.v) {
+			return Prefs{}, &ValidationError{"Quiet hours must be times like 22:00."}
+		}
+		*q.dst = *q.v
+	}
 	b2i := func(b bool) int64 {
 		if b {
 			return 1
@@ -126,10 +146,17 @@ func (p *PrefsService) Update(ctx context.Context, userID string, patch PrefsPat
 		UserID: userID, Theme: cur.Theme, Mode: cur.Mode, Density: cur.Density, Motion: cur.Motion,
 		CompletionFlutter: b2i(cur.CompletionFlutter), HighlightOverdue: b2i(cur.HighlightOverdue),
 		RemindersEnabled: b2i(cur.RemindersEnabled), TimeZone: cur.TimeZone,
+		QuietStart: cur.QuietStart, QuietEnd: cur.QuietEnd,
 		UpdatedAt: store.FormatTime(p.b.now()),
 	})
 	if err == nil {
 		p.b.emit(ctx, sse.Event{UserID: userID, Kind: "prefs"})
 	}
 	return cur, err
+}
+
+// validClock reports whether s is a 24-hour "HH:MM".
+func validClock(s string) bool {
+	_, err := time.Parse("15:04", s)
+	return err == nil && len(s) == 5
 }

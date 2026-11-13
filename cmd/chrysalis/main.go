@@ -28,6 +28,7 @@ import (
 	"github.com/runlevel-six/chrysalis/internal/sse"
 	"github.com/runlevel-six/chrysalis/internal/storage"
 	"github.com/runlevel-six/chrysalis/internal/store"
+	"github.com/runlevel-six/chrysalis/internal/webpush"
 	"github.com/runlevel-six/chrysalis/web"
 )
 
@@ -92,6 +93,16 @@ func serve(ctx context.Context) error {
 	go purgeTrash(ctx, st, files, cfg.TrashRetention, log)
 	// Reminders (§3.9) are checked every half minute.
 	boards := service.NewBoards(st, time.Now)
+	// Web Push for reminders (§3.9), unless CHRYSALIS_PUSH=off.
+	var push *service.Push
+	if cfg.Push.Enabled {
+		keys, err := service.VAPIDKeys(ctx, st, cfg.Push.PrivateKey)
+		if err != nil {
+			return fmt.Errorf("push keys: %w", err)
+		}
+		push = service.NewPush(st, time.Now, keys, webpush.NewSender(keys, cfg.Push.Subject), brand.DisplayName, log)
+		boards.SetPusher(push.Pusher())
+	}
 	if cfg.Backup.Schedule == "daily" {
 		go dailyBackups(ctx, st, cfg, log)
 	}
@@ -99,7 +110,7 @@ func serve(ctx context.Context) error {
 	srv := &http.Server{
 		Addr: cfg.ListenAddr,
 		Handler: api.NewHandler(api.Deps{
-			Config: cfg, Store: st, Files: files, Auth: authn, Static: web.Dist(), Branding: brand, Hub: hub, Boards: boards, Log: log,
+			Config: cfg, Store: st, Files: files, Auth: authn, Static: web.Dist(), Branding: brand, Hub: hub, Boards: boards, Push: push, Log: log,
 		}),
 		ReadHeaderTimeout: 10 * time.Second,
 	}

@@ -2,8 +2,9 @@
 # mode, docs/DESIGN.md §6.1; good practice for OIDC mode too). Overlays patch
 # the ingress controller's namespace and pod labels to match their cluster.
 #
-# Egress: DNS, plus HTTPS for the OIDC issuer. Header mode can drop the HTTPS
-# rule; add SMTP or S3 rules when those features are configured.
+# Egress: DNS, plus HTTPS for the OIDC issuer and for push services (reminders
+# sent to people's devices). Header mode with CHRYSALIS_PUSH=off can drop the
+# HTTPS rule; add SMTP or S3 rules when those features are configured.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:

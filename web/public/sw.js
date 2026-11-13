@@ -88,3 +88,42 @@ self.addEventListener("fetch", (event) => {
     );
   }
 });
+
+// ---------- Push notifications (reminders, §3.9) ----------
+//
+// The server sends {title, body, url, tag}, encrypted for this browser; the
+// push service that carried it can't read it.
+
+self.addEventListener("push", (event) => {
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch {
+    data = { body: event.data ? event.data.text() : "" };
+  }
+  event.waitUntil(
+    self.registration.showNotification(data.title || "Chrysalis", {
+      body: data.body || "",
+      tag: data.tag || undefined, // a newer reminder for the same card replaces the older
+      icon: "/icon-192.png",
+      badge: "/icon-192.png",
+      data: { url: data.url || "/" },
+    }),
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const url = new URL((event.notification.data && event.notification.data.url) || "/", self.location.origin).href;
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((windows) => {
+      // Reuse an open window of the app if there is one.
+      for (const w of windows) {
+        if (new URL(w.url).origin === self.location.origin && "focus" in w) {
+          return w.focus().then((f) => (f && "navigate" in f ? f.navigate(url) : f));
+        }
+      }
+      return self.clients.openWindow(url);
+    }),
+  );
+});

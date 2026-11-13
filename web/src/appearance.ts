@@ -24,6 +24,8 @@ export type Prefs = {
   highlightOverdue: boolean;
   remindersEnabled: boolean;
   timeZone: string;
+  quietStart: string;
+  quietEnd: string;
 };
 
 export const DEFAULT_PREFS: Prefs = {
@@ -35,6 +37,8 @@ export const DEFAULT_PREFS: Prefs = {
   highlightOverdue: false,
   remindersEnabled: false,
   timeZone: "",
+  quietStart: "",
+  quietEnd: "",
 };
 
 /** This device's IANA time zone, for reminders and "today". */

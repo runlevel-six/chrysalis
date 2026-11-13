@@ -35,6 +35,7 @@ type server struct {
 	centering   *service.Centering
 	branding    branding.Branding
 	hub         *sse.Hub
+	push        *service.Push
 	log         *slog.Logger
 }
 
@@ -59,7 +60,9 @@ type Deps struct {
 	// Boards is the content service, shared with background jobs such as
 	// reminders; nil makes one (tests).
 	Boards *service.Boards
-	Log    *slog.Logger
+	// Push delivers reminders to devices; nil means push is off.
+	Push *service.Push
+	Log  *slog.Logger
 }
 
 func NewHandler(d Deps) http.Handler {
@@ -74,8 +77,9 @@ func NewHandler(d Deps) http.Handler {
 	}
 	boards.SetNotifier(hub.Publish)
 	s := &server{
-		hub: hub,
-		cfg: cfg, store: st, boards: boards, attachments: service.NewAttachments(boards, d.Files),
+		hub:  hub,
+		push: d.Push,
+		cfg:  cfg, store: st, boards: boards, attachments: service.NewAttachments(boards, d.Files),
 		prefs: service.NewPrefs(st, boards, d.Branding.Has), branding: d.Branding, log: log,
 		centering: service.NewCentering(boards),
 	}
@@ -87,6 +91,7 @@ func NewHandler(d Deps) http.Handler {
 	protected.HandleFunc("GET /api/v1/boards/{id}", s.getBoard)
 	s.registerContent(protected)
 	s.registerReminders(protected)
+	s.registerPush(protected)
 	s.registerAttachments(protected)
 	s.registerImports(protected)
 	s.registerCentering(protected)

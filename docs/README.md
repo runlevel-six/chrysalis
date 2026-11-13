@@ -22,6 +22,11 @@ below pick out what each kind of reader needs first; every page is listed once u
    one.
 4. [Branding reference](reference/branding.md): add your own themes, icon and name.
 
+### Use reminders
+
+1. [Get reminders on your phone](how-to/get-reminders-on-your-phone.md): turn reminders on, choose them per card, and
+   get them as notifications.
+
 ### Move in from Trello
 
 1. [Import a board from Trello](how-to/import-from-trello.md): export each board from Trello and bring it across.
@@ -53,6 +58,7 @@ below pick out what each kind of reader needs first; every page is listed once u
 | [ADR-0001: Calendar on the board's drag library](adr/0001-calendar-on-the-boards-drag-library.md) | Decision record | Why the calendar is built in the app rather than on a calendar library |
 | [Design document](DESIGN.md) | Explanation | Why Chrysalis is built the way it is, and what it will and won't do |
 | [Import a board from Trello](how-to/import-from-trello.md) | How-to | Export a board from Trello, import it, and what comes across |
+| [Get reminders on your phone](how-to/get-reminders-on-your-phone.md) | How-to | Turn reminders on, get them as notifications on each device, quiet hours |
 | [Set up the centering line](how-to/set-up-the-centering-line.md) | How-to | Turn the line on, fill collections by hand or from a file, and import with `chrysalis admin quotes import` |
 | [Centering line files](reference/centering-line-files.md) | Reference | The YAML/JSON import and export format, its limits, and additive versus replace imports |
 | [Configuration](reference/configuration.md) | Reference | Every `CHRYSALIS_*` environment variable, and the `chrysalis admin` commands |

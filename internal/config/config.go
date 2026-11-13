@@ -42,6 +42,8 @@ type Config struct {
 	// Backup holds where backups go, how many to keep, and whether the
 	// server makes them itself (docs/DESIGN.md §7.4).
 	Backup Backup
+	// Push configures Web Push for reminders (§3.9).
+	Push Push
 	// Version is the build's version (set by main from -ldflags, not the
 	// environment), shown in the app so it's easy to confirm what's deployed.
 	Version string
@@ -58,6 +60,19 @@ type OIDC struct {
 	RedirectURL   string
 	Scopes        []string
 	AllowedGroups []string // empty means any authenticated user
+}
+
+// Push configures Web Push. With Enabled, the server pushes reminders to the
+// devices people turn it on for; it needs outbound HTTPS to the browsers'
+// push services.
+type Push struct {
+	Enabled bool
+	// PrivateKey is a fixed VAPID key (base64url); empty means the server
+	// makes one on first use and keeps it in the database.
+	PrivateKey string
+	// Subject is how push services can contact whoever runs this server: a
+	// mailto: or https: address. Defaults to the base URL.
+	Subject string
 }
 
 // Backup configures backups of the database and local attachments.
@@ -160,6 +175,21 @@ func Load(getenv func(string) string) (*Config, error) {
 	c.Backup.Schedule = env("BACKUP_SCHEDULE", "off")
 	if c.Backup.Schedule != "off" && c.Backup.Schedule != "daily" {
 		errs = append(errs, fmt.Errorf("CHRYSALIS_BACKUP_SCHEDULE %q must be off or daily", c.Backup.Schedule))
+	}
+
+	switch env("PUSH", "on") {
+	case "on":
+		c.Push.Enabled = true
+	case "off":
+	default:
+		errs = append(errs, errors.New("CHRYSALIS_PUSH must be on or off"))
+	}
+	c.Push.PrivateKey = env("VAPID_PRIVATE_KEY", "")
+	if c.BaseURL != nil {
+		c.Push.Subject = env("VAPID_SUBJECT", c.BaseURL.String())
+	}
+	if s := c.Push.Subject; s != "" && !strings.HasPrefix(s, "mailto:") && !strings.HasPrefix(s, "https://") && !strings.HasPrefix(s, "http://") {
+		errs = append(errs, errors.New("CHRYSALIS_VAPID_SUBJECT must be a mailto: or https: address"))
 	}
 
 	c.StorageBackend = env("STORAGE_BACKEND", "local")

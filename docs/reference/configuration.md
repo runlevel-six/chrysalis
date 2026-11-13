@@ -47,6 +47,17 @@ startup and refuses to start, listing every problem, if any are invalid or incon
 | `CHRYSALIS_STORAGE_BACKEND` | `local` | Where attachments are kept. Only `local` (under the data directory) is available today. |
 | `CHRYSALIS_TRASH_RETENTION_DAYS` | `30` | How long deleted boards, columns, cards, labels, checklists and attachments can be restored before they're permanently removed. |
 
+## Push notifications
+
+Reminders always appear in the app. With push on, people can also have them sent to their phones and computers as
+notifications; see [Get reminders on your phone](../how-to/get-reminders-on-your-phone.md).
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `CHRYSALIS_PUSH` | `on` | `off` turns push notifications off for everyone; reminders still show in the app. Push needs outbound HTTPS to the browsers' push services. |
+| `CHRYSALIS_VAPID_PRIVATE_KEY` | — | The server's push identity, as base64url. If unset, the server makes one on first start and keeps it in the database (so it's in backups). Changing it means everyone has to turn notifications on again. |
+| `CHRYSALIS_VAPID_SUBJECT` | `<base URL>` | How push services can contact whoever runs the server: a `mailto:` or `https:` address. |
+
 ## Backups
 
 See [Back up and restore](../how-to/back-up-and-restore.md) for how to use these, and

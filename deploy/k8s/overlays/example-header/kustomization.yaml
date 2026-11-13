@@ -31,8 +31,11 @@ patches:
       - op: add
         path: /spec/storageClassName
         value: example-rwo
-  # No OIDC issuer to call in header mode, so drop the HTTPS egress rule.
-  - target: { kind: NetworkPolicy, name: chrysalis }
-    patch: |-
-      - op: remove
-        path: /spec/egress/1
+  # Header mode has no OIDC issuer to call, but push notifications for
+  # reminders need HTTPS out to browsers' push services, so the base's HTTPS
+  # egress rule stays. With CHRYSALIS_PUSH=off you can remove it:
+  #
+  # - target: { kind: NetworkPolicy, name: chrysalis }
+  #   patch: |-
+  #     - op: remove
+  #       path: /spec/egress/1

@@ -75,3 +75,28 @@ test("choose a reminder on a card; it arrives under the bell and can be snoozed"
   await expect(panel).toContainText("Nothing here.");
   await expect(page.getByRole("button", { name: "Notifications" })).toBeVisible(); // no longer "new"
 });
+
+test.describe("with a service worker", () => {
+  test.use({ serviceWorkers: "allow" });
+
+test("Settings offers reminders on this device and quiet hours", async ({ page, context }) => {
+  await context.grantPermissions(["notifications"]);
+  await page.goto("/settings");
+  await page.getByLabel("Remind me about cards I choose").check();
+  await expect(page.getByRole("heading", { name: "On this device" })).toBeVisible();
+  // Never asks for notification permission by itself; only this button does.
+  // (Headless browsers report notifications as blocked whatever is granted,
+  // so either the button or the calm "blocked" explanation is right here.)
+  await expect(page.locator(".push-settings")).toContainText(/Send reminders to this device|Notifications are blocked/);
+
+  const saved = page.waitForResponse((r) => r.url().endsWith("/me/prefs") && r.request().method() === "PATCH");
+  await page.getByLabel("Quiet hours: no notifications on devices").check();
+  await saved;
+  await expect(page.getByLabel("From")).toHaveValue("21:00");
+  await expect(page.getByLabel("Until")).toHaveValue("07:00");
+  await expectAccessible(page, "reminder settings");
+  await page.reload();
+  await expect(page.getByLabel("Until")).toHaveValue("07:00");
+  await page.request.patch("/api/v1/me/prefs", { data: { quietStart: "", quietEnd: "" } });
+});
+});

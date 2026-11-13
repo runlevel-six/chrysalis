@@ -315,6 +315,13 @@ export type Notification = {
 };
 
 export const api = {
+  pushInfo: () => request<{ enabled: boolean; publicKey?: string }>("GET", "/push"),
+  pushSubscribe: (subscription: PushSubscriptionJSON, label: string) =>
+    request<void>("POST", "/me/push-subscriptions", { subscription, label }),
+  pushUnsubscribe: (endpoint: string) => request<void>("POST", "/me/push-subscriptions/remove", { endpoint }),
+  pushStatus: (endpoint: string) =>
+    request<{ subscribed: boolean; devices: number }>("POST", "/me/push-subscriptions/status", { endpoint }),
+  pushTest: () => request<{ devices: number }>("POST", "/me/push-test"),
   reminder: (cardId: string) =>
     request<{ reminder: Reminder | null }>("GET", `/cards/${encodeURIComponent(cardId)}/reminder`).then((r) => r.reminder),
   setReminder: (cardId: string, spec: ReminderSpec) =>

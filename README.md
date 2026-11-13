@@ -22,8 +22,8 @@ gradient. Most cards are one line; one is open, showing its labels, due date and
 
 **In daily use, in a household trial.** Everything in the design's first phase is built and deployed: boards, cards and
 their details, the overwhelm controls, themes, live sync, offline viewing, backups and the Trello import. The second
-phase is under way: the calendar view and in-app reminders are done; push notifications, custom fields and sharing
-come next. What's planned and why is in the [design document](docs/DESIGN.md#4-feature-scope-by-phase).
+phase is under way: the calendar view and reminders (in the app and as notifications on your devices) are done;
+custom fields and sharing come next. What's planned and why is in the [design document](docs/DESIGN.md#4-feature-scope-by-phase).
 
 Releases are tagged `vX.Y.Z`, and each one publishes a multi-architecture container image to
 `ghcr.io/runlevel-six/chrysalis`.
@@ -53,7 +53,8 @@ Releases are tagged `vX.Y.Z`, and each one publishes a multi-architecture contai
 **Around the board**
 
 - A **calendar** of due dates across one board or all of them, with drag to reschedule and a panel of undated cards.
-- **Reminders** that are opt-in twice (in Settings, then per card), gently worded, and snoozable.
+- **Reminders** that are opt-in twice (in Settings, then per card), gently worded, snoozable, and optionally sent to
+  your phone as notifications, with quiet hours.
 - A **centering line**: an optional, quiet line of Scripture or quotes you choose, under the board's title.
 - **Live sync** between tabs and devices, and **offline viewing** of the boards you've opened, installable on a phone's
   home screen.
@@ -98,6 +99,7 @@ The [documentation index](docs/README.md) has reading paths for each kind of rea
 | | |
 | --- | --- |
 | Getting started | [Try Chrysalis on your computer](docs/tutorials/try-chrysalis.md) |
+| Using it | [Get reminders on your phone](docs/how-to/get-reminders-on-your-phone.md) · [Keyboard shortcuts](docs/reference/keyboard-shortcuts.md) |
 | Running it | [Sign in with OIDC](docs/how-to/sign-in-with-oidc.md) · [Sign in through a proxy](docs/how-to/sign-in-behind-a-proxy.md) · [Back up and restore](docs/how-to/back-up-and-restore.md) · [Import from Trello](docs/how-to/import-from-trello.md) · [Set up the centering line](docs/how-to/set-up-the-centering-line.md) |
 | Reference | [Configuration](docs/reference/configuration.md) · [Branding](docs/reference/branding.md) · [Keyboard shortcuts](docs/reference/keyboard-shortcuts.md) · [Centering line files](docs/reference/centering-line-files.md) |
 | Background | [Design document](docs/DESIGN.md) · [How sync and offline work](docs/explanation/sync-and-offline.md) · [How backups work](docs/explanation/backups.md) · [Decision records](docs/adr/) |

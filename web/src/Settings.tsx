@@ -10,6 +10,7 @@ import { api, type User } from "./api";
 import { BUILT_IN_THEMES, DEFAULT_PREFS, deviceTimeZone, type Prefs, type Theme } from "./appearance";
 import { useUndo } from "./undo";
 import { BackLink } from "./BackLink";
+import { PushSettings, QuietHours } from "./PushSettings";
 import { CenteringSection } from "./CenteringSettings";
 
 export function useBrandingThemes(): Theme[] {
@@ -72,7 +73,7 @@ export function SettingsPage() {
   // Local copy so controls respond on the click itself; the shared cache
   // (and the server) catch up a tick later.
   const [prefs, setPrefs] = useState(saved);
-  useEffect(() => setPrefs(saved), [saved.theme, saved.mode, saved.density, saved.motion, saved.completionFlutter, saved.highlightOverdue, saved.remindersEnabled]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => setPrefs(saved), [saved.theme, saved.mode, saved.density, saved.motion, saved.completionFlutter, saved.highlightOverdue, saved.remindersEnabled, saved.quietStart, saved.quietEnd]); // eslint-disable-line react-hooks/exhaustive-deps
   const set = (patch: Partial<Prefs>) => {
     setPrefs((p) => ({ ...p, ...patch }));
     save(patch);
@@ -178,6 +179,12 @@ export function SettingsPage() {
           Nothing reminds you unless you ask: once this is on, choose <strong>Remind me</strong> in a card's dates.
           Reminders show under the bell at the top of the page.
         </p>
+        {prefs.remindersEnabled && (
+          <>
+            <PushSettings />
+            <QuietHours start={prefs.quietStart} end={prefs.quietEnd} onChange={(quietStart, quietEnd) => set({ quietStart, quietEnd })} />
+          </>
+        )}
       </div>
 
       <CenteringSection />

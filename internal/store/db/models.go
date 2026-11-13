@@ -167,6 +167,17 @@ type Notification struct {
 	DismissedAt sql.NullString
 }
 
+type PushSubscription struct {
+	ID        string
+	UserID    string
+	Endpoint  string
+	P256dh    string
+	Auth      string
+	Label     string
+	CreatedAt string
+	LastOkAt  sql.NullString
+}
+
 type Quote struct {
 	ID           string
 	CollectionID string
@@ -197,6 +208,11 @@ type QuoteCollectionMember struct {
 	CollectionID string
 	UserID       string
 	Role         string
+}
+
+type ServerSetting struct {
+	Key   string
+	Value string
 }
 
 type Session struct {
@@ -267,4 +283,6 @@ type UserPref struct {
 	UpdatedAt         string
 	RemindersEnabled  int64
 	TimeZone          string
+	QuietStart        string
+	QuietEnd          string
 }
