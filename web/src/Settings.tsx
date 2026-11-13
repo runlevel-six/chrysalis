@@ -9,6 +9,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type User } from "./api";
 import { BUILT_IN_THEMES, DEFAULT_PREFS, type Prefs, type Theme } from "./appearance";
 import { useUndo } from "./undo";
+import { Link, navigate } from "./router";
 
 export function useBrandingThemes(): Theme[] {
   const b = useQuery({ queryKey: ["branding"], queryFn: api.branding, staleTime: Infinity });
@@ -65,6 +66,45 @@ function Choice<T extends string>({
   );
 }
 
+// Settings remembers the page it was opened from (per tab, surviving a
+// reload), so "Back" returns to the same board.
+const RETURN = "chrysalis.settingsReturn";
+export const rememberReturn = () => {
+  if (window.location.pathname === "/settings") return;
+  try {
+    sessionStorage.setItem(RETURN, window.location.pathname);
+  } catch {
+    // storage blocked: Back goes to the board list
+  }
+};
+const returnPath = () => {
+  try {
+    const p = sessionStorage.getItem(RETURN);
+    return p && /^\/(b\/[^/]+)?$/.test(p) ? p : "/";
+  } catch {
+    return "/";
+  }
+};
+
+function BackLink() {
+  const to = returnPath();
+  const boards = useQuery({ queryKey: ["boards"], queryFn: api.listBoards, enabled: to !== "/" });
+  const id = to.startsWith("/b/") ? decodeURIComponent(to.slice(3)) : "";
+  const name = boards.data?.find((b) => b.id === id)?.name;
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !e.defaultPrevented && !(e.target instanceof HTMLElement && e.target.closest("dialog, [role=dialog]"))) navigate(to);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [to]);
+  return (
+    <Link to={to} className="back-link">
+      <span aria-hidden="true">←</span> {to === "/" ? "Back to your boards" : name ? `Back to ${name}` : "Back to your board"}
+    </Link>
+  );
+}
+
 export function SettingsPage() {
   const { prefs: saved, set: save } = usePrefs();
   // Local copy so controls respond on the click itself; the shared cache
@@ -82,6 +122,7 @@ export function SettingsPage() {
 
   return (
     <section className="page">
+      <BackLink />
       <h1>Settings</h1>
       <p className="muted">These follow you to every device you sign in on.</p>
 

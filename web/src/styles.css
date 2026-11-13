@@ -1656,3 +1656,17 @@ select {
 .swatch.is-none {
   background: repeating-linear-gradient(135deg, var(--surface) 0 6px, var(--border) 6px 8px);
 }
+
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  min-height: 44px;
+  color: var(--text-muted);
+  text-decoration: none;
+}
+
+.back-link:hover {
+  color: var(--text);
+  text-decoration: underline;
+}

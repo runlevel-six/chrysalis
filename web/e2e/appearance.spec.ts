@@ -147,3 +147,19 @@ test("the completion flutter plays, and respects reduced motion and its setting"
   await expect(flutter).toHaveCount(1);
   await expect(card(page, "Prune")).toBeVisible();
 });
+
+test("Settings has a way back to the board it was opened from", async ({ page }) => {
+  await newBoard(page, ["Col"]);
+  const boardUrl = page.url();
+  const name = await page.getByRole("heading", { level: 1 }).textContent();
+  await page.getByRole("link", { name: "Settings" }).click();
+  await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
+  await page.reload();
+  await page.getByRole("link", { name: `Back to ${name}` }).click();
+  await expect(page).toHaveURL(boardUrl);
+
+  await page.getByRole("link", { name: "Settings" }).click();
+  await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page).toHaveURL(boardUrl);
+});

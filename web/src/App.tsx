@@ -9,7 +9,7 @@ import markUrl from "./art/mark-small.svg";
 import emptyStateSvg from "./art/empty-state.svg?raw";
 import { Link, navigate, usePath } from "./router";
 import { BoardPage } from "./board/BoardPage";
-import { SettingsPage, useBrandingThemes } from "./Settings";
+import { rememberReturn, SettingsPage, useBrandingThemes } from "./Settings";
 import { applyAppearance, DEFAULT_PREFS, watchSystem } from "./appearance";
 import { Icon } from "./ui";
 
@@ -92,7 +92,7 @@ export function App() {
         </Link>
         {me.data && (
           <span className="header-right">
-            <Link to="/settings" className="header-link" aria-label="Settings">
+            <Link to="/settings" className="header-link" aria-label="Settings" onClick={rememberReturn}>
               <Icon.Settings />
             </Link>
             <span className="muted">{me.data.displayName}</span>
