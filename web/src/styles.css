@@ -1411,6 +1411,30 @@ select {
   padding: 0;
 }
 
+/* ---------- Import from Trello ---------- */
+
+.trello-import {
+  margin-top: 1.5rem;
+}
+
+.trello-import > .text-button {
+  margin-left: -0.75rem; /* line the text up with the form above */
+}
+
+.import-report h3 {
+  margin: 1rem 0 0.25rem;
+  font-size: 1rem;
+}
+
+.import-report ul {
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+.import-report li {
+  margin: 0.25rem 0;
+}
+
 /* ---------- Compact density ---------- */
 
 .density-compact .card-title {

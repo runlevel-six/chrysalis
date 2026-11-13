@@ -4,14 +4,14 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { api, ApiError, type Board, type BoardTemplate } from "./api";
+import { api, ApiError, type Board, type BoardTemplate, type ImportResult } from "./api";
 import markUrl from "./art/mark-small.svg";
 import emptyStateSvg from "./art/empty-state.svg?raw";
 import { Link, navigate, usePath } from "./router";
 import { BoardPage } from "./board/BoardPage";
 import { rememberReturn, SettingsPage, useBrandingThemes } from "./Settings";
 import { applyAppearance, DEFAULT_PREFS, watchSystem } from "./appearance";
-import { Icon } from "./ui";
+import { Dialog, Icon } from "./ui";
 
 // Opening the app lands where you left off (§3.3): the first time a tab
 // loads "/", it goes to the last board you had open. Reloads and later
@@ -138,7 +138,102 @@ function BoardList() {
         </ul>
       )}
       <NewBoardForm />
+      <TrelloImport />
     </section>
+  );
+}
+
+// Import from Trello (§8): pick the board's JSON export; a new board is
+// made from it, then a short report says what came across and what didn't.
+function TrelloImport() {
+  const qc = useQueryClient();
+  const input = useRef<HTMLInputElement>(null);
+  const [result, setResult] = useState<ImportResult | null>(null);
+  const run = useMutation({
+    mutationFn: api.importTrello,
+    onSuccess: (r) => {
+      qc.setQueryData<Board[]>(["boards"], (old) => [...(old ?? []), r.board]);
+      void qc.invalidateQueries({ queryKey: ["boards"] });
+      setResult(r);
+    },
+  });
+
+  const n = result?.report.imported;
+  const counts = n
+    ? (
+        [
+          [n.columns, "column", "columns"],
+          [n.cards, "card", "cards"],
+          [n.labels, "label", "labels"],
+          [n.checklists, "checklist", "checklists"],
+          [n.checklistItems, "checklist item", "checklist items"],
+          [n.comments, "comment", "comments"],
+          [n.links, "link", "links"],
+        ] as const
+      )
+        .filter(([count]) => count > 0)
+        .map(([count, one, many]) => `${count} ${count === 1 ? one : many}`)
+    : [];
+
+  return (
+    <div className="trello-import">
+      <input
+        ref={input}
+        type="file"
+        accept=".json,application/json"
+        hidden
+        aria-label="Trello export file"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          e.target.value = "";
+          if (file) run.mutate(file);
+        }}
+      />
+      <button type="button" className="text-button" disabled={run.isPending} onClick={() => input.current?.click()}>
+        {run.isPending ? "Importing…" : "Import from Trello"}
+      </button>
+      {run.error && (
+        <p className="note" role="status">
+          {run.error instanceof ApiError && (run.error.status === 400 || run.error.status === 413)
+            ? run.error.message
+            : "That didn't import. Check your connection and try again."}
+        </p>
+      )}
+      <Dialog open={result !== null} onClose={() => setResult(null)} title="Imported from Trello">
+        {result && (
+          <div className="import-report">
+            <p>
+              <strong>{result.board.name}</strong> is ready{counts.length > 0 ? `: ${counts.join(", ")}.` : "."}
+            </p>
+            {result.report.notes.length > 0 && (
+              <>
+                <h3>Good to know</h3>
+                <ul>
+                  {result.report.notes.map((t) => (
+                    <li key={t}>{t}</li>
+                  ))}
+                </ul>
+              </>
+            )}
+            {result.report.skipped.length > 0 && (
+              <>
+                <h3>Left out</h3>
+                <ul>
+                  {result.report.skipped.map((t) => (
+                    <li key={t}>{t}</li>
+                  ))}
+                </ul>
+              </>
+            )}
+            <div className="dialog-actions">
+              <Link to={`/b/${result.boardId}`} className="button" onClick={() => setResult(null)}>
+                Open the board
+              </Link>
+            </div>
+          </div>
+        )}
+      </Dialog>
+    </div>
   );
 }
 

@@ -41,6 +41,23 @@ export const LABEL_COLORS = ["green", "lime", "yellow", "orange", "red", "pink",
 export type LabelColor = (typeof LABEL_COLORS)[number];
 export type Label = { id: string; boardId: string; name: string; color: LabelColor; position: string; version: number };
 
+/** What a Trello import created, and what it left out (§8). */
+export type ImportReport = {
+  imported: {
+    columns: number;
+    cards: number;
+    descriptions: number;
+    labels: number;
+    checklists: number;
+    checklistItems: number;
+    comments: number;
+    links: number;
+  };
+  skipped: string[];
+  notes: string[];
+};
+export type ImportResult = { boardId: string; board: Board; report: ImportReport };
+
 /** Starting columns for a new board (§3.12); offered, never forced. */
 export type BoardTemplate = "blank" | "simple" | "metamorphosis";
 
@@ -206,6 +223,14 @@ export const api = {
   trashCard: (id: string) => request<Card>("DELETE", `/cards/${encodeURIComponent(id)}`),
   restoreCard: (id: string) => request<Card>("POST", `/cards/${encodeURIComponent(id)}/restore`),
 
+  importTrello: async (file: File): Promise<ImportResult> => {
+    const form = new FormData();
+    form.append("file", file, file.name);
+    const res = await fetch("/api/v1/import/trello", { method: "POST", credentials: "same-origin", body: form });
+    const body = await res.json().catch(() => undefined);
+    if (!res.ok) throw new ApiError(res.status, (body as { error?: string })?.error ?? res.statusText, body);
+    return body as ImportResult;
+  },
   uploadBackground: async (boardId: string, file: File): Promise<Attachment> => {
     const form = new FormData();
     form.append("file", file, file.name);

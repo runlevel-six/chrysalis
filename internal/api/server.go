@@ -69,6 +69,7 @@ func NewHandler(d Deps) http.Handler {
 	protected.HandleFunc("GET /api/v1/boards/{id}", s.getBoard)
 	s.registerContent(protected)
 	s.registerAttachments(protected)
+	s.registerImports(protected)
 	protected.HandleFunc("GET /api/v1/me/prefs", s.getPrefs)
 	protected.HandleFunc("PATCH /api/v1/me/prefs", s.updatePrefs)
 	protected.HandleFunc("GET /api/v1/branding", s.getBranding)

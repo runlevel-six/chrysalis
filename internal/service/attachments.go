@@ -163,15 +163,25 @@ func (a *Attachments) UploadBackground(ctx context.Context, userID, boardID, fil
 	return attachmentFromRow(created), nil
 }
 
+// CleanLinkURL checks that rawURL is a full http or https web address of a
+// sensible length, the only kind of link a card can carry.
+func CleanLinkURL(rawURL string) (*url.URL, error) {
+	u, err := url.Parse(strings.TrimSpace(rawURL))
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" || len(rawURL) > 2048 {
+		return nil, &ValidationError{"Links must be full web addresses starting with http:// or https://."}
+	}
+	return u, nil
+}
+
 // AddLink attaches a web link to a card.
 func (a *Attachments) AddLink(ctx context.Context, userID, cardID, rawURL, title string) (Attachment, error) {
 	card, err := liveCard(ctx, a.b.st.Queries, userID, cardID, true)
 	if err != nil {
 		return Attachment{}, err
 	}
-	u, err := url.Parse(strings.TrimSpace(rawURL))
-	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" || len(rawURL) > 2048 {
-		return Attachment{}, &ValidationError{"Links must be full web addresses starting with http:// or https://."}
+	u, err := CleanLinkURL(rawURL)
+	if err != nil {
+		return Attachment{}, err
 	}
 	name := cleanFilename(title)
 	if strings.TrimSpace(title) == "" {

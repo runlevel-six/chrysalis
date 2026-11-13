@@ -12,6 +12,10 @@ below pick out what each kind of reader needs first; every page is listed once u
 1. [Configuration reference](reference/configuration.md): every setting, including the two ways to sign people in.
 2. [Branding reference](reference/branding.md): add your own themes, icon and name.
 
+### Move in from Trello
+
+1. [Import a board from Trello](how-to/import-from-trello.md): export each board from Trello and bring it across.
+
 ### Understand how it's built
 
 1. [Design document](DESIGN.md): goals, the UX specification, architecture, data and security decisions.
@@ -21,5 +25,6 @@ below pick out what each kind of reader needs first; every page is listed once u
 | Page | Kind | What it covers |
 | --- | --- | --- |
 | [Design document](DESIGN.md) | Explanation | Why Chrysalis is built the way it is, and what it will and won't do |
+| [Import a board from Trello](how-to/import-from-trello.md) | How-to | Export a board from Trello, import it, and what comes across |
 | [Configuration](reference/configuration.md) | Reference | Every `CHRYSALIS_*` environment variable |
 | [Branding](reference/branding.md) | Reference | `CHRYSALIS_BRANDING_DIR`: theme schema, contrast checks, icon and name |

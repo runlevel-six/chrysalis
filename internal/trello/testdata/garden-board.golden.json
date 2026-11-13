@@ -1,0 +1,554 @@
+{
+  "board": {
+    "name": "Garden Plans",
+    "background": {
+      "type": "color",
+      "value": "#519839"
+    },
+    "labels": [
+      {
+        "name": "Vegetables",
+        "color": "green"
+      },
+      {
+        "name": "Herbs",
+        "color": "lime"
+      },
+      {
+        "name": "Before frost",
+        "color": "red"
+      },
+      {
+        "name": "light sky",
+        "color": "sky"
+      },
+      {
+        "name": "Tools",
+        "color": "gray"
+      },
+      {
+        "name": "Someday",
+        "color": "gray"
+      },
+      {
+        "name": "Flowers",
+        "color": "purple"
+      }
+    ],
+    "columns": [
+      {
+        "name": "Last year",
+        "collapsed": true,
+        "cards": [
+          {
+            "title": "Plant garlic",
+            "archived": true,
+            "labels": [
+              0
+            ],
+            "comments": [
+              {
+                "body": {
+                  "type": "doc",
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": "Originally by Alice:"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": "Planted 30 cloves."
+                        }
+                      ]
+                    }
+                  ]
+                },
+                "createdAt": "2025-10-20T15:00:00.000Z"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Ideas",
+        "cards": [
+          {
+            "title": "Peas along the fence",
+            "dueAt": "2026-05-01T16:00:00Z",
+            "labels": [
+              5,
+              6
+            ]
+          }
+        ]
+      },
+      {
+        "name": "To plant",
+        "cards": [
+          {
+            "title": "Sow basil",
+            "description": {
+              "type": "doc",
+              "content": [
+                {
+                  "type": "blockquote",
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": "Basil hates the cold."
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "codeBlock",
+                  "attrs": {
+                    "language": null
+                  },
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "water: every 2 days\nsun:   6 hours"
+                    }
+                  ]
+                },
+                {
+                  "type": "horizontalRule"
+                },
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Then "
+                    },
+                    {
+                      "type": "text",
+                      "text": "repot",
+                      "marks": [
+                        {
+                          "type": "strike"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "text": " thin them."
+                    }
+                  ]
+                }
+              ]
+            },
+            "labels": [
+              1,
+              3
+            ]
+          },
+          {
+            "title": "Start tomato seeds",
+            "description": {
+              "type": "doc",
+              "content": [
+                {
+                  "type": "heading",
+                  "attrs": {
+                    "level": 2
+                  },
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Plan"
+                    }
+                  ]
+                },
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Start "
+                    },
+                    {
+                      "type": "text",
+                      "text": "six",
+                      "marks": [
+                        {
+                          "type": "bold"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "text": " trays of "
+                    },
+                    {
+                      "type": "text",
+                      "text": "Roma",
+                      "marks": [
+                        {
+                          "type": "italic"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "text": " and "
+                    },
+                    {
+                      "type": "text",
+                      "text": "cherry",
+                      "marks": [
+                        {
+                          "type": "italic"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "text": " tomatoes."
+                    },
+                    {
+                      "type": "hardBreak"
+                    },
+                    {
+                      "type": "text",
+                      "text": "Keep them warm."
+                    }
+                  ]
+                },
+                {
+                  "type": "bulletList",
+                  "content": [
+                    {
+                      "type": "listItem",
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "content": [
+                            {
+                              "type": "text",
+                              "text": "Soak seeds overnight"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "listItem",
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "content": [
+                            {
+                              "type": "text",
+                              "text": "Sow "
+                            },
+                            {
+                              "type": "text",
+                              "text": "1/4 inch",
+                              "marks": [
+                                {
+                                  "type": "code"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "text",
+                              "text": " deep"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "orderedList",
+                          "attrs": {
+                            "start": 1
+                          },
+                          "content": [
+                            {
+                              "type": "listItem",
+                              "content": [
+                                {
+                                  "type": "paragraph",
+                                  "content": [
+                                    {
+                                      "type": "text",
+                                      "text": "Water lightly"
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "listItem",
+                              "content": [
+                                {
+                                  "type": "paragraph",
+                                  "content": [
+                                    {
+                                      "type": "text",
+                                      "text": "Cover with a dome"
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "See "
+                    },
+                    {
+                      "type": "text",
+                      "text": "the seed list",
+                      "marks": [
+                        {
+                          "type": "link",
+                          "attrs": {
+                            "href": "https://example.com/seeds"
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "text": "."
+                    }
+                  ]
+                }
+              ]
+            },
+            "startAt": "2026-03-01",
+            "dueAt": "2026-03-15T17:00:00Z",
+            "coverColor": "red",
+            "labels": [
+              0,
+              2
+            ],
+            "checklists": [
+              {
+                "title": "Steps",
+                "items": [
+                  {
+                    "text": "Soak the seeds"
+                  }
+                ]
+              },
+              {
+                "title": "Supplies",
+                "items": [
+                  {
+                    "text": "Grow light",
+                    "done": true
+                  },
+                  {
+                    "text": "Seed trays",
+                    "done": true
+                  },
+                  {
+                    "text": "Potting mix"
+                  }
+                ]
+              }
+            ],
+            "comments": [
+              {
+                "body": {
+                  "type": "doc",
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": "Originally by bob:"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": "Ordered them from the usual place."
+                        }
+                      ]
+                    }
+                  ]
+                },
+                "createdAt": "2026-03-01T08:00:00.000Z"
+              },
+              {
+                "body": {
+                  "type": "doc",
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": "Originally by Alice:"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": "Seeds arrived! "
+                        },
+                        {
+                          "type": "text",
+                          "text": "Twelve",
+                          "marks": [
+                            {
+                              "type": "bold"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "text": " varieties."
+                        }
+                      ]
+                    }
+                  ]
+                },
+                "createdAt": "2026-03-03T09:30:00.000Z"
+              }
+            ],
+            "links": [
+              {
+                "url": "https://example.com/catalog/tomatoes",
+                "title": "Seed catalog"
+              },
+              {
+                "url": "https://example.com/uploads/planting-chart.pdf",
+                "title": "planting-chart.pdf"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Growing",
+        "cards": [
+          {
+            "title": "Turn the compost",
+            "description": {
+              "type": "doc",
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Every "
+                    },
+                    {
+                      "type": "text",
+                      "text": "two",
+                      "marks": [
+                        {
+                          "type": "italic"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "text": " weeks."
+                    }
+                  ]
+                }
+              ]
+            },
+            "archived": true,
+            "coverColor": "gray"
+          }
+        ]
+      },
+      {
+        "name": "Harvested",
+        "cards": [
+          {
+            "title": "Build raised beds",
+            "dueAt": "2026-02-01T00:00:00Z",
+            "completed": true,
+            "labels": [
+              4
+            ],
+            "checklists": [
+              {
+                "title": "Checklist",
+                "items": [
+                  {
+                    "text": "Cedar boards",
+                    "done": true
+                  }
+                ]
+              }
+            ],
+            "links": [
+              {
+                "url": "https://example.com/uploads/bed-photo.jpg",
+                "title": "bed-photo.jpg"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "report": {
+    "imported": {
+      "columns": 5,
+      "cards": 6,
+      "descriptions": 3,
+      "labels": 7,
+      "checklists": 3,
+      "checklistItems": 5,
+      "comments": 3,
+      "links": 3
+    },
+    "skipped": [
+      "Power-Up data (2 items). Power-Ups have no Chrysalis equivalent.",
+      "Custom fields (1 field, with values on 1 card).",
+      "People assigned to 1 card. Cards here don't have members.",
+      "Due-date reminders on 1 card.",
+      "Locations on 1 card.",
+      "Cover images on 1 card. The pictures themselves came across as links.",
+      "Due dates and assignees on 1 checklist item.",
+      "1 checklist item with no text.",
+      "1 attachment whose address isn't a web link.",
+      "1 card whose list wasn't in the export.",
+      "1 start date that fell after the card's due date.",
+      "Trello's activity history (moves, edits and so on). Only comments come across."
+    ],
+    "notes": [
+      "1 list was archived in Trello. It's here as a collapsed column, and its cards are in the board's archive.",
+      "Comments are shown under your name, each starting with who originally wrote it, and keep their original dates.",
+      "2 files uploaded to Trello came across as links. Opening them may need you to be signed in to Trello.",
+      "Trello's darker and lighter label colors use the nearest Chrysalis color."
+    ]
+  }
+}
