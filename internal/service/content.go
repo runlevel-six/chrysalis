@@ -78,6 +78,9 @@ type BoardView struct {
 	Columns          map[string]bool `json:"columns"`          // column id -> collapsed
 	Focus            Focus           `json:"focus"`
 	HideCompleted    bool            `json:"hideCompleted"`
+	// Whether the centering line shows on this board (§3.13): nil follows
+	// the person's own setting.
+	CenteringLine *bool `json:"centeringLine"`
 }
 
 // Focus mode (docs/DESIGN.md §3.4): one column, or only the cards matching a
@@ -342,6 +345,10 @@ func (s *Boards) Detail(ctx context.Context, userID, boardID string) (BoardDetai
 	if bv, err := s.st.GetBoardView(ctx, db.GetBoardViewParams{UserID: userID, BoardID: boardID}); err == nil {
 		out.View.Focus = parseFocus(bv.FocusJson)
 		out.View.HideCompleted = bv.HideCompleted != 0
+		if bv.ShowCenteringLine.Valid {
+			show := bv.ShowCenteringLine.Int64 != 0
+			out.View.CenteringLine = &show
+		}
 	} else if !errors.Is(err, sql.ErrNoRows) {
 		return out, err
 	}
@@ -824,6 +831,9 @@ type ViewChange struct {
 	Columns       map[string]bool `json:"columns"`
 	Focus         *Focus          `json:"focus"`
 	HideCompleted *bool           `json:"hideCompleted"`
+	// CenteringLine shows (true) or hides (false) the centering line on this
+	// board, whatever the person's own setting.
+	CenteringLine *bool `json:"centeringLine"`
 	// Opened records that the user opened the board, so the app can bring
 	// them back to it next time (§3.3).
 	Opened bool `json:"opened"`
@@ -896,6 +906,13 @@ func (s *Boards) SetView(ctx context.Context, userID, boardID string, v ViewChan
 				return err
 			}
 		}
+		if v.CenteringLine != nil {
+			if err := q.SetBoardCenteringLine(ctx, db.SetBoardCenteringLineParams{
+				UserID: userID, BoardID: boardID, ShowCenteringLine: sql.NullInt64{Int64: b2i(*v.CenteringLine), Valid: true}, UpdatedAt: now,
+			}); err != nil {
+				return err
+			}
+		}
 		if v.Opened {
 			if err := q.TouchBoardOpened(ctx, db.TouchBoardOpenedParams{
 				UserID: userID, BoardID: boardID, LastOpenedAt: sql.NullString{String: now, Valid: true}, UpdatedAt: now,
@@ -907,7 +924,7 @@ func (s *Boards) SetView(ctx context.Context, userID, boardID string, v ViewChan
 	})
 	// Only this person's other devices care about their view, and only when
 	// something they'd see changed: merely opening the board isn't news.
-	if err == nil && (len(cards) > 0 || len(columns) > 0 || v.Focus != nil || v.HideCompleted != nil) {
+	if err == nil && (len(cards) > 0 || len(columns) > 0 || v.Focus != nil || v.HideCompleted != nil || v.CenteringLine != nil) {
 		s.emit(ctx, sse.Event{UserID: userID, Kind: "view", EntityID: boardID})
 	}
 	return err
@@ -974,6 +991,14 @@ func PurgeTrash(ctx context.Context, st *store.Store, cutoff time.Time) (int64, 
 	if err != nil {
 		return 0, err
 	}
-	n6, err := st.PurgeTrashedBoards(ctx, c)
-	return n1 + n2 + n3 + n4 + n5 + n6, err
+	n6, err := st.PurgeTrashedQuotes(ctx, c)
+	if err != nil {
+		return 0, err
+	}
+	n7, err := st.PurgeTrashedQuoteCollections(ctx, c)
+	if err != nil {
+		return 0, err
+	}
+	n8, err := st.PurgeTrashedBoards(ctx, c)
+	return n1 + n2 + n3 + n4 + n5 + n6 + n7 + n8, err
 }

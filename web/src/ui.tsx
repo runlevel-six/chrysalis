@@ -76,6 +76,17 @@ const svg = (path: ReactNode) =>
 
 export const Icon = {
   ChevronRight: svg(<path d="m9 6 6 6-6 6" />),
+  ChevronLeft: svg(<path d="m15 6-6 6 6 6" />),
+  ChevronUp: svg(<path d="m6 15 6-6 6 6" />),
+  // A pushpin: the head, the collar, the point.
+  Pin: svg(<path d="M9 3h6l-1 6 3 3v2H7v-2l3-3-1-6ZM12 14v7" />),
+  EyeOff: svg(
+    <>
+      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" />
+      <circle cx="12" cy="12" r="3" />
+      <path d="m4 4 16 16" />
+    </>,
+  ),
   ChevronDown: svg(<path d="m6 9 6 6 6-6" />),
   Expand: svg(<path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />),
   Plus: svg(<path d="M12 5v14M5 12h14" />),

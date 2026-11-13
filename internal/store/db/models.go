@@ -141,6 +141,38 @@ type Label struct {
 	Version   int64
 }
 
+type Quote struct {
+	ID           string
+	CollectionID string
+	Text         string
+	Attribution  string
+	Reference    string
+	Translation  string
+	TagsJson     string
+	Position     string
+	CreatedAt    string
+	UpdatedAt    string
+	DeletedAt    sql.NullString
+	Version      int64
+}
+
+type QuoteCollection struct {
+	ID        string
+	OwnerID   string
+	Name      string
+	Position  string
+	CreatedAt string
+	UpdatedAt string
+	DeletedAt sql.NullString
+	Version   int64
+}
+
+type QuoteCollectionMember struct {
+	CollectionID string
+	UserID       string
+	Role         string
+}
+
 type Session struct {
 	ID        string
 	UserID    string
@@ -159,12 +191,13 @@ type User struct {
 }
 
 type UserBoardView struct {
-	UserID        string
-	BoardID       string
-	FocusJson     string
-	HideCompleted int64
-	LastOpenedAt  sql.NullString
-	UpdatedAt     string
+	UserID            string
+	BoardID           string
+	FocusJson         string
+	HideCompleted     int64
+	LastOpenedAt      sql.NullString
+	UpdatedAt         string
+	ShowCenteringLine sql.NullInt64
 }
 
 type UserCardView struct {
@@ -172,6 +205,22 @@ type UserCardView struct {
 	CardID    string
 	Expanded  int64
 	UpdatedAt string
+}
+
+type UserCentering struct {
+	UserID            string
+	Enabled           int64
+	Mode              string
+	RotateEvery       string
+	OrderMode         string
+	CollectionIdsJson string
+	PinnedQuoteID     sql.NullString
+	CurrentQuoteID    sql.NullString
+	CurrentPeriod     string
+	SeenLoadsJson     string
+	ShuffleSeenJson   string
+	HiddenUntil       sql.NullString
+	UpdatedAt         string
 }
 
 type UserColumnView struct {

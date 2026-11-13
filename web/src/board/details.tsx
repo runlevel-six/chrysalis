@@ -281,6 +281,7 @@ export function BoardSettingsDialog({
   background,
   labels,
   actions,
+  centeringLine,
   onClose,
 }: {
   boardId: string;
@@ -291,9 +292,13 @@ export function BoardSettingsDialog({
   background: Board["background"];
   labels: Label[];
   actions: Actions;
+  /** The per-person centering-line override, when the line is turned on. */
+  centeringLine?: { show: boolean; set: (show: boolean) => void };
   onClose: () => void;
 }) {
   const [boardName, setBoardName] = useState(name);
+  const [showLine, setShowLine] = useState(centeringLine?.show ?? true);
+  useEffect(() => setShowLine(centeringLine?.show ?? true), [centeringLine?.show]);
   useEffect(() => setBoardName(name), [name]);
   // Local copy so controls respond on the same frame they're clicked; the
   // query cache (and server) catch up a moment later.
@@ -368,6 +373,23 @@ export function BoardSettingsDialog({
         <legend>Collapsed columns</legend>
         {toggle("hideColumnCount", "Show the number of cards", true)}
       </fieldset>
+
+      {centeringLine && (
+        <fieldset className="settings-group">
+          <legend>Centering line</legend>
+          <label className="check">
+            <input
+              type="checkbox"
+              checked={showLine}
+              onChange={(e) => {
+                setShowLine(e.target.checked);
+                centeringLine.set(e.target.checked);
+              }}
+            />
+            Show the centering line on this board (just for you)
+          </label>
+        </fieldset>
+      )}
 
       <IconPicker icon={icon} actions={actions} />
 

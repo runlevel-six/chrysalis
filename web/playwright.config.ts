@@ -11,7 +11,7 @@ import { defineConfig, devices } from "@playwright/test";
 
 const port = 18090;
 const baseURL = `http://localhost:${port}`;
-const PREFS_TESTS = /appearance\.spec\.ts/;
+const PREFS_TESTS = /(appearance|centering)\.spec\.ts/;
 
 export default defineConfig({
   testDir: "e2e",

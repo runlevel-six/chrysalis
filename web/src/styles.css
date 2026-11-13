@@ -1628,6 +1628,13 @@ select {
   padding: 0.25rem 0.5rem 0.25rem 0.75rem;
 }
 
+.board.has-background .centering-line {
+  margin: 0.25rem 1rem 0;
+  padding: 0 0.5rem 0 0.75rem;
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+}
+
 .board.has-background .add-column:not(.is-open) {
   background: color-mix(in srgb, var(--surface) 80%, transparent);
 }
@@ -1814,4 +1821,184 @@ kbd {
   font: inherit;
   font-size: 0.875rem;
   text-align: center;
+}
+
+/* ---------- Centering line (§3.13) ---------- */
+
+/* One quiet line under the board header. It never animates: an entry that
+ * changes just appears. */
+.centering-line {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.25rem;
+  min-height: 30px;
+  margin: 0.125rem 0 0;
+  padding: 0 0.5rem 0 1rem;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+.centering-text {
+  flex: 1;
+  min-width: 0;
+  min-height: 30px;
+  justify-content: flex-start;
+  padding: 0;
+  background: none;
+  color: inherit;
+  font-weight: 400;
+  font-style: italic;
+  text-align: left;
+  border-radius: var(--radius);
+}
+
+.centering-text:hover {
+  color: var(--text);
+}
+
+.centering-quote {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.centering-line.is-expanded .centering-text {
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 0.25rem 0;
+}
+
+/* Open, the whole entry shows, keeping its own line breaks. */
+.centering-line.is-expanded .centering-quote {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.centering-source {
+  font-style: normal;
+}
+
+/* The controls keep the line 30px tall: full 44px targets that overlap the
+ * space around it. They show on hover and focus, and once it's open (which is
+ * how touch gets to them). */
+.centering-controls {
+  display: flex;
+  flex: none;
+  margin-block: -7px;
+  visibility: hidden;
+}
+
+.centering-line:hover .centering-controls,
+.centering-line:focus-within .centering-controls,
+.centering-line.is-expanded .centering-controls {
+  visibility: visible;
+}
+
+.centering-controls .icon-button.is-on {
+  color: var(--accent);
+}
+
+@media (hover: none) {
+  .centering-line:not(.is-expanded):not(:focus-within) .centering-controls {
+    visibility: hidden;
+  }
+}
+
+/* ---------- Centering line settings ---------- */
+
+.collection-list,
+.entry-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.collection {
+  border-bottom: 1px solid var(--border);
+}
+
+.collection-head,
+.entry {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.collection-toggle {
+  flex: 1;
+  justify-content: flex-start;
+  padding-left: 0.25rem;
+  text-align: left;
+}
+
+.collection-actions,
+.entry-actions {
+  display: flex;
+  flex: none;
+}
+
+.collection-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0 0 1rem 1.75rem;
+}
+
+.collection-export {
+  margin: 0;
+}
+
+.entry {
+  align-items: flex-start;
+  padding: 0.25rem 0;
+  border-top: 1px solid var(--border);
+}
+
+.entry-text {
+  flex: 1;
+  min-width: 0;
+  padding-top: 0.6rem;
+  overflow-wrap: anywhere;
+}
+
+.entry-quote {
+  font-style: italic;
+  white-space: pre-wrap;
+}
+
+.entry-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  flex: 1;
+  padding: 0.5rem 0;
+}
+
+.entry-form-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: 0.5rem;
+}
+
+.entry-form textarea {
+  font: inherit;
+  font-weight: 400;
+  color: var(--text);
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.5rem 0.75rem;
+  resize: vertical;
+}
+
+.add-entry summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.new-collection {
+  margin-top: 0.75rem;
 }

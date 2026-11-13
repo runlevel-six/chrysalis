@@ -12,7 +12,7 @@ import (
 
 const getBoardView = `-- name: GetBoardView :one
 
-SELECT user_id, board_id, focus_json, hide_completed, last_opened_at, updated_at FROM user_board_view WHERE user_id = ? AND board_id = ?
+SELECT user_id, board_id, focus_json, hide_completed, last_opened_at, updated_at, show_centering_line FROM user_board_view WHERE user_id = ? AND board_id = ?
 `
 
 type GetBoardViewParams struct {
@@ -32,6 +32,7 @@ func (q *Queries) GetBoardView(ctx context.Context, arg GetBoardViewParams) (Use
 		&i.HideCompleted,
 		&i.LastOpenedAt,
 		&i.UpdatedAt,
+		&i.ShowCenteringLine,
 	)
 	return i, err
 }

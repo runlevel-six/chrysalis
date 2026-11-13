@@ -52,6 +52,8 @@ export function keysFor(n: Notice): QueryKey[] | "all" {
       return [["me"]];
     case "boards":
       return [["boards"]];
+    case "centering":
+      return [["centering"]];
     case "view":
       return n.entityId ? [["board", n.entityId, "detail"]] : [];
     case "board":

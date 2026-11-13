@@ -107,6 +107,8 @@ export type BoardView = {
   columns: Record<string, boolean>; // column id -> collapsed
   focus: Focus;
   hideCompleted: boolean;
+  /** Show (true) or hide (false) the centering line here; null follows the person's setting. */
+  centeringLine: boolean | null;
 };
 
 /** Focus mode (§3.4): one column, or only the cards matching a filter. */
@@ -120,7 +122,62 @@ export type ViewChange = {
   columns?: Record<string, boolean>;
   focus?: Focus;
   hideCompleted?: boolean;
+  centeringLine?: boolean;
   opened?: boolean;
+};
+
+/** The centering line (§3.13): collections of short entries, one shown at a time. */
+export type QuoteCollection = {
+  id: string;
+  name: string;
+  position: string;
+  role: "owner" | "editor" | "viewer";
+  entryCount: number;
+  deletedAt?: string;
+  version: number;
+  createdAt: string;
+  updatedAt: string;
+};
+export type QuoteEntry = {
+  id: string;
+  collectionId: string;
+  text: string;
+  attribution: string;
+  reference: string;
+  translation: string;
+  tags: string[];
+  position: string;
+  deletedAt?: string;
+  version: number;
+  updatedAt: string;
+};
+export type QuoteEntryFields = Pick<QuoteEntry, "text" | "attribution" | "reference" | "translation" | "tags">;
+export type CenteringSettings = {
+  enabled: boolean;
+  mode: "rotate" | "pinned";
+  interval: "page_load" | "hourly" | "daily" | "weekly";
+  order: "sequential" | "shuffle";
+  collectionIds: string[];
+};
+export type CenteringLine = {
+  enabled: boolean;
+  mode: "rotate" | "pinned";
+  hidden: boolean;
+  hiddenUntil?: string;
+  entry: QuoteEntry | null;
+  pinned: boolean;
+  poolSize: number;
+};
+export type QuoteImportResult = { collection: QuoteCollection; created: boolean; added: number; replaced: number };
+export type CenteringTrash = { collections: QuoteCollection[]; entries: QuoteEntry[] };
+
+/** This device's IANA time zone, so "today" and "midnight" are the person's own. */
+export const timeZone = () => {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+  } catch {
+    return "UTC";
+  }
 };
 
 export type ChecklistItem = { id: string; checklistId: string; text: string; doneAt: string | null; position: string; version: number };
@@ -311,6 +368,56 @@ export const api = {
     request<Attachment>("POST", `/cards/${encodeURIComponent(cardId)}/links`, { url, title }),
   trashAttachment: (id: string) => request<Attachment>("DELETE", `/attachments/${encodeURIComponent(id)}`),
   restoreAttachment: (id: string) => request<Attachment>("POST", `/attachments/${encodeURIComponent(id)}/restore`),
+
+  centeringSettings: () => request<CenteringSettings>("GET", "/me/centering"),
+  updateCenteringSettings: (patch: Partial<CenteringSettings>) => request<CenteringSettings>("PATCH", "/me/centering", patch),
+  // The tab's id (sent as a header) tells the server which page load this
+  // is, for the "every page load" interval.
+  centeringLine: () => request<CenteringLine>("GET", `/me/centering/line?tz=${encodeURIComponent(timeZone())}`),
+  centeringNext: () => request<CenteringLine>("POST", "/me/centering/line/next"),
+  centeringPrevious: () => request<CenteringLine>("POST", "/me/centering/line/previous"),
+  centeringPin: (entryId?: string) => request<CenteringLine>("POST", "/me/centering/line/pin", { entryId }),
+  centeringUnpin: () => request<CenteringLine>("POST", "/me/centering/line/unpin"),
+  centeringHide: () => request<CenteringLine>("POST", "/me/centering/line/hide", { tz: timeZone() }),
+  centeringShow: () => request<CenteringLine>("POST", "/me/centering/line/show"),
+  quoteCollections: () =>
+    request<{ collections: QuoteCollection[] }>("GET", "/centering/collections").then((r) => r.collections),
+  createQuoteCollection: (name: string) => request<QuoteCollection>("POST", "/centering/collections", { name }),
+  updateQuoteCollection: (id: string, patch: { name?: string; position?: string }) =>
+    request<QuoteCollection>("PATCH", `/centering/collections/${encodeURIComponent(id)}`, patch),
+  trashQuoteCollection: (id: string) => request<QuoteCollection>("DELETE", `/centering/collections/${encodeURIComponent(id)}`),
+  restoreQuoteCollection: (id: string) =>
+    request<QuoteCollection>("POST", `/centering/collections/${encodeURIComponent(id)}/restore`),
+  quoteEntries: (collectionId: string) =>
+    request<{ entries: QuoteEntry[] }>("GET", `/centering/collections/${encodeURIComponent(collectionId)}/entries`).then(
+      (r) => r.entries,
+    ),
+  createQuoteEntry: (collectionId: string, fields: Partial<QuoteEntryFields> & { position?: string }) =>
+    request<QuoteEntry>("POST", `/centering/collections/${encodeURIComponent(collectionId)}/entries`, fields),
+  updateQuoteEntry: (id: string, patch: Partial<QuoteEntryFields> & { position?: string }) =>
+    request<QuoteEntry>("PATCH", `/centering/entries/${encodeURIComponent(id)}`, patch),
+  trashQuoteEntry: (id: string) => request<QuoteEntry>("DELETE", `/centering/entries/${encodeURIComponent(id)}`),
+  restoreQuoteEntry: (id: string) => request<QuoteEntry>("POST", `/centering/entries/${encodeURIComponent(id)}/restore`),
+  centeringTrash: () => request<CenteringTrash>("GET", "/centering/trash"),
+  /** Where a collection downloads, as YAML or JSON. */
+  exportQuotesUrl: (collectionId: string, format: "yaml" | "json" = "yaml") =>
+    `/api/v1/centering/collections/${encodeURIComponent(collectionId)}/export?format=${format}`,
+  importQuotes: async (file: File, opts: { collectionId?: string; replace?: boolean }): Promise<QuoteImportResult> => {
+    const form = new FormData();
+    form.append("file", file, file.name);
+    const q = new URLSearchParams();
+    if (opts.collectionId) q.set("collectionId", opts.collectionId);
+    if (opts.replace) q.set("replace", "1");
+    const res = await fetch(`/api/v1/centering/import?${q}`, {
+      method: "POST",
+      credentials: "same-origin",
+      headers: CLIENT_HEADER,
+      body: form,
+    });
+    const body = await res.json().catch(() => undefined);
+    if (!res.ok) throw new ApiError(res.status, (body as { error?: string })?.error ?? res.statusText, body);
+    return body as QuoteImportResult;
+  },
 
   checklists: (cardId: string) =>
     request<{ checklists: Checklist[] }>("GET", `/cards/${encodeURIComponent(cardId)}/checklists`).then((r) => r.checklists),
