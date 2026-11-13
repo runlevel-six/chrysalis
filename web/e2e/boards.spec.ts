@@ -4,7 +4,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 
-import { gotoBoards } from "./helpers";
+import { expectAccessible, gotoBoards, newBoard } from "./helpers";
 
 // Every test signs in as the same dev user and runs in parallel, so each one
 // uses board names no other test will.
@@ -114,4 +114,17 @@ test("start a board from the Metamorphosis template", async ({ page }) => {
   await page.getByRole("button", { name: "View" }).click();
   await page.getByRole("menuitem", { name: "Hide completed cards" }).click();
   await expect(page.getByRole("group", { name: "Emerged" })).toHaveCount(0);
+});
+
+test("? shows the keyboard shortcuts", async ({ page, isMobile }) => {
+  test.skip(!!isMobile, "desktop keyboard");
+  await newBoard(page, ["Col"]);
+  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+  await page.keyboard.press("?");
+  const dialog = page.getByRole("dialog", { name: "Keyboard shortcuts" });
+  await expect(dialog).toBeVisible();
+  await expect(dialog).toContainText("Filter cards");
+  await expectAccessible(page, "shortcut help");
+  await page.keyboard.press("Escape");
+  await expect(dialog).toHaveCount(0);
 });

@@ -70,6 +70,7 @@ export function BoardPage({
   const [moveCardId, setMoveCardId] = useState<string | null>(null);
   const [optionsColumnId, setOptionsColumnId] = useState<string | null>(null);
   const [trashOpen, setTrashOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [archivedOpen, setArchivedOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [labelsCardId, setLabelsCardId] = useState<string | null>(null);
@@ -164,6 +165,9 @@ export function BoardPage({
       } else if (e.key === "/") {
         e.preventDefault();
         setFilterOpen(true);
+      } else if (e.key === "?") {
+        e.preventDefault();
+        setShortcutsOpen(true);
       } else if (e.key === "Escape" && view.focus.type !== "none") {
         view.setFocus({ type: "none" });
         setFilterOpen(false);
@@ -317,6 +321,7 @@ export function BoardPage({
             ...(readOnly ? [] : [{ label: "Board settings", onSelect: () => setSettingsOpen(true) }]),
             { label: "Archived cards", onSelect: () => setArchivedOpen(true) },
             { label: "Trash", onSelect: () => setTrashOpen(true) },
+            { label: "Keyboard shortcuts", onSelect: () => setShortcutsOpen(true) },
           ]}
         />
       </div>
@@ -480,6 +485,7 @@ export function BoardPage({
         />
       )}
       {trashOpen && <TrashDialog boardId={id} actions={actions} onClose={() => setTrashOpen(false)} />}
+      <ShortcutsDialog open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
     </div>
   );
 }
@@ -909,5 +915,38 @@ function FilterBar({
         Clear filter
       </button>
     </div>
+  );
+}
+
+const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+
+const SHORTCUTS: [string, string][] = [
+  ["N", "New card in the column you're in"],
+  ["Space", "Expand or collapse the focused card"],
+  ["Enter", "Open the focused card in full"],
+  ["E", "Edit the focused card's title"],
+  ["Esc", "Close or cancel; leave focus mode"],
+  [isMac ? "⌘ Z" : "Ctrl Z", "Undo"],
+  ["F", "Focus on one column, or leave focus"],
+  ["/", "Filter cards"],
+  ["?", "Show these shortcuts"],
+];
+
+/** Keyboard shortcut help (§3.10). */
+function ShortcutsDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+  return (
+    <Dialog open={open} onClose={onClose} title="Keyboard shortcuts">
+      <dl className="shortcuts">
+        {SHORTCUTS.map(([k, what]) => (
+          <div key={k}>
+            <dt>
+              <kbd>{k}</kbd>
+            </dt>
+            <dd>{what}</dd>
+          </div>
+        ))}
+      </dl>
+      <p className="muted">Shortcuts pause while you're typing.</p>
+    </Dialog>
   );
 }
