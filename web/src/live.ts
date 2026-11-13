@@ -57,10 +57,10 @@ export function keysFor(n: Notice): QueryKey[] | "all" {
     case "view":
       return n.entityId ? [["board", n.entityId, "detail"]] : [];
     case "board":
-      return [["board", n.boardId], ["boards"]];
+      return [["board", n.boardId], ["boards"], ["calendar"]];
   }
   const keys: QueryKey[] = [];
-  if (n.boardId) keys.push(["board", n.boardId]);
+  if (n.boardId) keys.push(["board", n.boardId], ["calendar"]);
   if (n.cardId) keys.push(["card", n.cardId]);
   return keys;
 }
@@ -100,13 +100,18 @@ function applier(qc: QueryClient) {
   };
 }
 
-/** Subscribe to a board's notices (or just this user's, with no board). */
-export function useLiveSync(boardId: string | undefined, enabled = true) {
+/**
+ * Subscribe to boards' notices (one board, several for the calendar, or none)
+ * plus this user's own channel.
+ */
+export function useLiveSync(boards: string | string[] | undefined, enabled = true) {
   const qc = useQueryClient();
+  const ids = (Array.isArray(boards) ? boards : boards ? [boards] : []).slice().sort();
+  const query = ids.map((id) => `board=${encodeURIComponent(id)}`).join("&");
   useEffect(() => {
     if (!enabled || typeof EventSource === "undefined") return;
     const apply = applier(qc);
-    const url = `/api/v1/events${boardId ? `?board=${encodeURIComponent(boardId)}` : ""}`;
+    const url = `/api/v1/events${query ? `?${query}` : ""}`;
     const es = new EventSource(url, { withCredentials: true });
     const onMessage = (ev: MessageEvent<string>) => {
       try {
@@ -125,5 +130,5 @@ export function useLiveSync(boardId: string | undefined, enabled = true) {
       wasOpen = true;
     };
     return () => es.close();
-  }, [boardId, enabled, qc]);
+  }, [query, enabled, qc]);
 }

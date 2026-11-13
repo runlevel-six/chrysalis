@@ -10,6 +10,7 @@ import emptyStateSvg from "./art/empty-state.svg?raw";
 import { Link, navigate, usePath } from "./router";
 import { BoardPage } from "./board/BoardPage";
 import { BoardDrawers, BoardTile } from "./Boards";
+import { CalendarPage } from "./Calendar";
 import { rememberReturn, SettingsPage, useBrandingThemes } from "./Settings";
 import { CenteringPage } from "./CenteringSettings";
 import { applyAppearance, DEFAULT_PREFS, watchSystem } from "./appearance";
@@ -43,7 +44,8 @@ export function App() {
   const offline = useOffline();
   const boardMatch = path.match(/^\/b\/([^/]+)$/);
   // Changes from other devices and tabs: this board's, and this user's own.
-  useLiveSync(boardMatch ? decodeURIComponent(boardMatch[1]) : undefined, !!me.data);
+  // (The calendar subscribes to its own boards.)
+  useLiveSync(boardMatch ? decodeURIComponent(boardMatch[1]) : undefined, !!me.data && path !== "/calendar");
 
   useEffect(() => {
     if (!me.data) return;
@@ -80,6 +82,7 @@ export function App() {
   let page;
   if (path === "/") page = <BoardList />;
   else if (path === "/settings") page = <SettingsPage />;
+  else if (path === "/calendar") page = <CalendarPage />;
   else if (path === "/settings/centering") page = <CenteringPage />;
   else if (boardMatch)
     page = (
@@ -100,6 +103,9 @@ export function App() {
         </Link>
         {me.data && (
           <span className="header-right">
+            <Link to="/calendar" className="header-link" aria-label="Calendar" title="Calendar">
+              <Icon.Calendar />
+            </Link>
             <Link to="/settings" className="header-link" aria-label="Settings" onClick={rememberReturn}>
               <Icon.Settings />
             </Link>

@@ -22,8 +22,8 @@ func drain(s *Subscription) []Event {
 
 func TestDeliversOnlyMatchingEvents(t *testing.T) {
 	h := NewHub()
-	alice := h.Subscribe("board-a", "alice", 0)
-	bob := h.Subscribe("board-b", "bob", 0)
+	alice := h.Subscribe([]string{"board-a"}, "alice", 0)
+	bob := h.Subscribe([]string{"board-b"}, "bob", 0)
 	h.Publish(Event{BoardID: "board-a", Kind: "card", EntityID: "c1"})
 	h.Publish(Event{BoardID: "board-b", Kind: "card", EntityID: "c2"})
 	h.Publish(Event{UserID: "alice", Kind: "prefs"})
@@ -41,7 +41,7 @@ func TestDeliversOnlyMatchingEvents(t *testing.T) {
 
 func TestReplayOnReconnect(t *testing.T) {
 	h := NewHub()
-	s := h.Subscribe("b", "u", 0)
+	s := h.Subscribe([]string{"b"}, "u", 0)
 	h.Publish(Event{BoardID: "b", EntityID: "1"})
 	first := drain(s)[0]
 	h.Unsubscribe(s)
@@ -49,7 +49,7 @@ func TestReplayOnReconnect(t *testing.T) {
 	h.Publish(Event{BoardID: "other", EntityID: "x"})
 	h.Publish(Event{BoardID: "b", EntityID: "3"})
 
-	s = h.Subscribe("b", "u", first.ID)
+	s = h.Subscribe([]string{"b"}, "u", first.ID)
 	got := drain(s)
 	if len(got) != 2 || got[0].EntityID != "2" || got[1].EntityID != "3" {
 		t.Fatalf("replay = %+v", got)
@@ -61,13 +61,13 @@ func TestResyncWhenHistoryIsGone(t *testing.T) {
 	for range historySize + 10 {
 		h.Publish(Event{BoardID: "b"})
 	}
-	s := h.Subscribe("b", "u", 1) // event 2.. long gone
+	s := h.Subscribe([]string{"b"}, "u", 1) // event 2.. long gone
 	got := drain(s)
 	if len(got) != 1 || got[0].Type != "resync" {
 		t.Fatalf("got %+v, want one resync", got)
 	}
 	// An id from the future (the server restarted and counts from 1 again).
-	s2 := h.Subscribe("b", "u", 1<<40)
+	s2 := h.Subscribe([]string{"b"}, "u", 1<<40)
 	if got := drain(s2); len(got) != 1 || got[0].Type != "resync" {
 		t.Fatalf("future id: %+v", got)
 	}
@@ -75,7 +75,7 @@ func TestResyncWhenHistoryIsGone(t *testing.T) {
 
 func TestSlowSubscriberGetsResyncNotBlocking(t *testing.T) {
 	h := NewHub()
-	slow := h.Subscribe("b", "u", 0)
+	slow := h.Subscribe([]string{"b"}, "u", 0)
 	for range bufferSize * 2 {
 		h.Publish(Event{BoardID: "b"}) // must not block
 	}
@@ -90,13 +90,13 @@ func TestSlowSubscriberGetsResyncNotBlocking(t *testing.T) {
 
 func TestCloseEndsSubscriptions(t *testing.T) {
 	h := NewHub()
-	s := h.Subscribe("b", "u", 0)
+	s := h.Subscribe([]string{"b"}, "u", 0)
 	h.Close()
 	if _, ok := <-s.C; ok {
 		t.Error("channel should close")
 	}
 	h.Publish(Event{BoardID: "b"}) // no panic after close
-	if s2 := h.Subscribe("b", "u", 0); func() bool { _, ok := <-s2.C; return ok }() {
+	if s2 := h.Subscribe([]string{"b"}, "u", 0); func() bool { _, ok := <-s2.C; return ok }() {
 		t.Error("subscribing after close should give a closed channel")
 	}
 }

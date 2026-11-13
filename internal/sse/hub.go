@@ -30,12 +30,12 @@ type Event struct {
 	Origin string `json:"origin,omitempty"`
 }
 
-// Subscription is one connected client: a board (optional) and the user's
-// own channel.
+// Subscription is one connected client: the boards it shows (none, one,
+// or several for the calendar) and the user's own channel.
 type Subscription struct {
-	BoardID string
-	UserID  string
-	C       chan Event
+	Boards map[string]bool
+	UserID string
+	C      chan Event
 }
 
 const (
@@ -57,7 +57,7 @@ func NewHub() *Hub {
 }
 
 func (s *Subscription) wants(e Event) bool {
-	return (e.BoardID != "" && e.BoardID == s.BoardID) || (e.UserID != "" && e.UserID == s.UserID)
+	return (e.BoardID != "" && s.Boards[e.BoardID]) || (e.UserID != "" && e.UserID == s.UserID)
 }
 
 // Publish records an event and delivers it to matching subscribers. A
@@ -92,8 +92,14 @@ func (h *Hub) Publish(e Event) {
 // Subscribe registers a client. lastID is the Last-Event-ID it reconnected
 // with (0 for a fresh connection); missed events are queued first, or a
 // resync if they're no longer all in the history.
-func (h *Hub) Subscribe(boardID, userID string, lastID uint64) *Subscription {
-	s := &Subscription{BoardID: boardID, UserID: userID, C: make(chan Event, bufferSize)}
+func (h *Hub) Subscribe(boardIDs []string, userID string, lastID uint64) *Subscription {
+	boards := make(map[string]bool, len(boardIDs))
+	for _, id := range boardIDs {
+		if id != "" {
+			boards[id] = true
+		}
+	}
+	s := &Subscription{Boards: boards, UserID: userID, C: make(chan Event, bufferSize)}
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	if h.closed {

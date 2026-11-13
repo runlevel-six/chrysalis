@@ -282,7 +282,23 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   return data;
 }
 
+/** The calendar view's data (GET /calendar). */
+export type Calendar = {
+  boards: Board[];
+  columns: Column[];
+  labels: Label[];
+  cards: Card[];
+  undated: Card[];
+  undatedMore: boolean;
+};
+
 export const api = {
+  calendar: (q: { board?: string; from: string; to: string; undated?: boolean }) => {
+    const p = new URLSearchParams({ from: q.from, to: q.to });
+    if (q.board) p.set("board", q.board);
+    if (q.undated) p.set("undated", "1");
+    return request<Calendar>("GET", `/calendar?${p}`);
+  },
   branding: () => request<{ displayName: string; themes: Theme[]; hasIcon: boolean }>("GET", "/branding"),
   updatePrefs: (patch: Partial<Prefs>) => request<Prefs>("PATCH", "/me/prefs", patch),
   me: () => request<User>("GET", "/me"),

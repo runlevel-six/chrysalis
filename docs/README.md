@@ -36,8 +36,10 @@ below pick out what each kind of reader needs first; every page is listed once u
 ### Understand how it's built
 
 1. [Design document](DESIGN.md): goals, the UX specification, architecture, data and security decisions.
-2. [How sync and offline work](explanation/sync-and-offline.md): live changes across devices, and read-only offline.
-3. [How backups work](explanation/backups.md): consistent snapshots, retention, and the CronJob trade-off.
+2. [Decision records](adr/): choices made along the way and why, such as
+   [building the calendar on the board's drag library](adr/0001-calendar-on-the-boards-drag-library.md).
+3. [How sync and offline work](explanation/sync-and-offline.md): live changes across devices, and read-only offline.
+4. [How backups work](explanation/backups.md): consistent snapshots, retention, and the CronJob trade-off.
 
 ## All pages
 
@@ -48,6 +50,7 @@ below pick out what each kind of reader needs first; every page is listed once u
 | [Sign in through a forward-auth proxy](how-to/sign-in-behind-a-proxy.md) | How-to | Header mode, safely |
 | [Keyboard shortcuts](reference/keyboard-shortcuts.md) | Reference | Every shortcut, and moving cards from the keyboard |
 | [How sync and offline work](explanation/sync-and-offline.md) | Explanation | Live sync, conflicts, and why offline is read-only |
+| [ADR-0001: Calendar on the board's drag library](adr/0001-calendar-on-the-boards-drag-library.md) | Decision record | Why the calendar is built in the app rather than on a calendar library |
 | [Design document](DESIGN.md) | Explanation | Why Chrysalis is built the way it is, and what it will and won't do |
 | [Import a board from Trello](how-to/import-from-trello.md) | How-to | Export a board from Trello, import it, and what comes across |
 | [Set up the centering line](how-to/set-up-the-centering-line.md) | How-to | Turn the line on, fill collections by hand or from a file, and import with `chrysalis admin quotes import` |

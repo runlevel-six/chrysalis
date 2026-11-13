@@ -15,6 +15,7 @@ import (
 
 func (s *server) registerContent(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/v1/boards/{id}/detail", s.boardDetail)
+	mux.HandleFunc("GET /api/v1/calendar", s.calendar)
 	mux.HandleFunc("DELETE /api/v1/boards/{id}", s.trashBoard(true))
 	mux.HandleFunc("POST /api/v1/boards/{id}/restore", s.trashBoard(false))
 	mux.HandleFunc("GET /api/v1/me/boards/archived", s.listBoardsWith(s.boards.ListArchived))
@@ -363,4 +364,16 @@ func (s *server) listBoardsWith(list func(context.Context, string) ([]service.Bo
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"boards": b})
 	}
+}
+
+// calendar serves the calendar view: ?from=&to= (YYYY-MM-DD, inclusive),
+// optional ?board= (else every board), and ?undated=1 for the side panel.
+func (s *server) calendar(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query()
+	c, err := s.boards.CalendarRange(r.Context(), userID(r), q.Get("board"), q.Get("from"), q.Get("to"), q.Get("undated") == "1")
+	if err != nil {
+		s.serviceError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, c)
 }

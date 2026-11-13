@@ -23,6 +23,15 @@ Tab to a card and press `M` to pick it up. Use the arrow keys to move it, betwee
 press `M`, `Space` or `Enter` to drop it, or `Esc` to put it back. Each step is announced to screen readers. Every card
 also has **Move up**, **Move down** and **Move to…** in its menu; **Move to…** can move it to another board.
 
+## In the calendar
+
+| Key | What it does |
+| --- | --- |
+| `Enter` | Open the focused card on its board |
+| `M` | Pick up the focused card; `←` `→` move it a day, `↑` `↓` a week; `M`, `Space` or `Enter` drops it, `Esc` puts it back |
+
+Moving a card keeps its time of day, and moves its start date by the same number of days.
+
 ## On the board list and in Settings
 
 | Key | What it does |

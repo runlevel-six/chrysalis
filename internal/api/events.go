@@ -31,14 +31,22 @@ func withOrigin(next http.Handler) http.Handler {
 
 const heartbeat = 25 * time.Second
 
+// maxStreamBoards bounds how many boards one stream follows (the calendar
+// across every board is the widest case).
+const maxStreamBoards = 100
+
 // events streams change notices (server-sent events, docs/DESIGN.md §5.5):
-// for one board if ?board= is given and the user can see it, and always the
-// user's own channel (their view state and preferences on other devices).
+// for each ?board= given that the user can see, and always the user's own
+// channel (their view state and preferences on other devices).
 func (s *server) events(w http.ResponseWriter, r *http.Request) {
 	u, _ := auth.UserFrom(r.Context())
-	boardID := r.URL.Query().Get("board")
-	if boardID != "" {
-		if _, err := s.boards.Get(r.Context(), u.ID, boardID); err != nil {
+	boardIDs := r.URL.Query()["board"]
+	if len(boardIDs) > maxStreamBoards {
+		auth.WriteError(w, http.StatusBadRequest, "too many boards for one stream")
+		return
+	}
+	for _, id := range boardIDs {
+		if _, err := s.boards.Get(r.Context(), u.ID, id); err != nil {
 			s.serviceError(w, r, err)
 			return
 		}
@@ -47,7 +55,7 @@ func (s *server) events(w http.ResponseWriter, r *http.Request) {
 
 	// Browsers resend the last id they saw when they reconnect.
 	lastID, _ := strconv.ParseUint(r.Header.Get("Last-Event-ID"), 10, 64)
-	sub := s.hub.Subscribe(boardID, u.ID, lastID)
+	sub := s.hub.Subscribe(boardIDs, u.ID, lastID)
 	defer s.hub.Unsubscribe(sub)
 
 	h := w.Header()

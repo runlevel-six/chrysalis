@@ -25,6 +25,7 @@ import { Dialog, Icon, Menu } from "../ui";
 import { flutterAfterMove, flutterFrom } from "../flutter";
 import { backgroundStyle } from "./backgrounds";
 import { holdSync } from "../live";
+import { navigate } from "../router";
 import { useOffline } from "../offline";
 import { DEFAULT_PREFS, isDark } from "../appearance";
 import { ArchivedDialog, BoardSettingsDialog, CardMeta, CoverBand, CoverDialog, DatesDialog, LabelChip, LabelsDialog } from "./details";
@@ -72,6 +73,13 @@ export function BoardPage({
   const centeringOn = !!useCenteringLine().data?.enabled;
 
   const [fullCardId, setFullCardId] = useState<string | null>(null);
+  // ?card=<id> (from the calendar) opens that card in full view once.
+  useEffect(() => {
+    const want = new URLSearchParams(window.location.search).get("card");
+    if (!want || !d) return;
+    if (d.cards.some((c) => c.id === want)) setFullCardId(want);
+    window.history.replaceState(null, "", window.location.pathname);
+  }, [d]); // eslint-disable-line react-hooks/exhaustive-deps
   const [moveCardId, setMoveCardId] = useState<string | null>(null);
   const [optionsColumnId, setOptionsColumnId] = useState<string | null>(null);
   const [trashOpen, setTrashOpen] = useState(false);
@@ -390,6 +398,7 @@ export function BoardPage({
               onSelect: () => view.setHideCompleted(!view.hideCompleted),
             },
             { label: "Filter cards…", onSelect: () => setFilterOpen(true) },
+            { label: "Calendar", onSelect: () => navigate(`/calendar?board=${encodeURIComponent(id)}`) },
             ...(centeringOn
               ? [
                   {
