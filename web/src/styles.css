@@ -1670,3 +1670,76 @@ select {
   color: var(--text);
   text-decoration: underline;
 }
+
+/* ---------- Board list management ---------- */
+
+.board-row {
+  display: flex;
+  align-items: stretch;
+  gap: 0.25rem;
+}
+
+.board-row .board-tile {
+  flex: 1;
+  min-width: 0;
+}
+
+.board-icon {
+  margin-right: 0.5rem;
+}
+
+.board-drawer {
+  margin-top: 1.5rem;
+}
+
+.board-drawer summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  color: var(--text-muted);
+}
+
+.drawer-list {
+  list-style: none;
+  padding: 0;
+  margin: 0.25rem 0 0;
+}
+
+.drawer-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-height: 44px;
+  border-bottom: 1px solid var(--border);
+}
+
+.icon-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+
+.icon-choice {
+  min-width: 44px;
+  height: 44px;
+  padding: 0 0.5rem;
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 1.25rem;
+}
+
+.icon-choice.is-none {
+  font-size: 1rem;
+}
+
+.icon-choice[aria-checked="true"] {
+  border-color: var(--text);
+}
+
+.icon-input {
+  width: 5rem;
+}

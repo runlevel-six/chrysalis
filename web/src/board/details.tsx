@@ -11,6 +11,7 @@ import { BACKGROUND_COLORS, GRADIENTS } from "./backgrounds";
 import { attachmentsKey } from "./Attachments";
 import { Dialog, Icon } from "../ui";
 import { useUndo } from "../undo";
+import { navigate } from "../router";
 import { detailKey, type useBoardActions } from "./useBoard";
 
 type Actions = ReturnType<typeof useBoardActions>;
@@ -273,6 +274,8 @@ export function ArchivedDialog({ boardId, onClose }: { boardId: string; onClose:
 /** Board name, what collapsed cards show, and the board's labels. */
 export function BoardSettingsDialog({
   boardId,
+  icon,
+  role,
   name,
   settings,
   background,
@@ -281,6 +284,8 @@ export function BoardSettingsDialog({
   onClose,
 }: {
   boardId: string;
+  icon: string;
+  role: Board["role"];
   name: string;
   settings: BoardSettings;
   background: Board["background"];
@@ -364,6 +369,8 @@ export function BoardSettingsDialog({
         {toggle("hideColumnCount", "Show the number of cards", true)}
       </fieldset>
 
+      <IconPicker icon={icon} actions={actions} />
+
       <BackgroundPicker boardId={boardId} background={background} actions={actions} />
 
       <fieldset className="settings-group">
@@ -375,6 +382,7 @@ export function BoardSettingsDialog({
           ))}
         </ul>
       </fieldset>
+      {role === "owner" && <BoardLifecycle boardId={boardId} name={name} onClose={onClose} />}
     </Dialog>
   );
 }
@@ -549,6 +557,119 @@ function BackgroundPicker({ boardId, background, actions }: { boardId: string; b
           <Icon.Image /> {uploading ? "Uploading…" : background.type === "image" ? "Use a different photo" : "Use a photo"}
         </button>
       </div>
+    </fieldset>
+  );
+}
+
+// A few calm, garden-ish suggestions; any single emoji can be typed instead.
+const ICONS = ["🦋", "🌱", "🌻", "🌿", "🏡", "🍳", "🧺", "📚", "🎨", "💼", "🛠️", "✨"];
+
+/** The board's optional icon (§3.1), shown on the board list and header. */
+function IconPicker({ icon, actions }: { icon: string; actions: Actions }) {
+  const [value, setValue] = useState(icon);
+  useEffect(() => setValue(icon), [icon]);
+  const set = (next: string) => {
+    setValue(next);
+    void actions.updateBoard({ icon: next }, next ? "Changed the board's icon" : "Removed the board's icon");
+  };
+  return (
+    <fieldset className="settings-group">
+      <legend>Icon</legend>
+      <div className="icon-choices" role="radiogroup" aria-label="Board icon">
+        <button type="button" role="radio" aria-checked={!value} className="icon-choice is-none" onClick={() => set("")}>
+          None
+        </button>
+        {ICONS.map((e) => (
+          <button key={e} type="button" role="radio" aria-checked={value === e} className="icon-choice" onClick={() => set(e)}>
+            {e}
+          </button>
+        ))}
+      </div>
+      <form
+        className="row bg-more"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (value.trim() !== icon) set(value.trim());
+        }}
+      >
+        <label className="check">
+          <span>Or type any emoji</span>
+          <input className="icon-input" value={value} maxLength={16} onChange={(e) => setValue(e.target.value)} aria-label="Any emoji" />
+        </label>
+        <button type="submit" disabled={value.trim() === icon}>
+          Use it
+        </button>
+      </form>
+    </fieldset>
+  );
+}
+
+/** Archive or delete the whole board (owners only). */
+function BoardLifecycle({ boardId, name, onClose }: { boardId: string; name: string; onClose: () => void }) {
+  const qc = useQueryClient();
+  const { push, notify } = useUndo();
+  const [confirming, setConfirming] = useState(false);
+  const refresh = () => qc.invalidateQueries({ queryKey: ["boards"] });
+  const fail = (err: unknown) =>
+    notify(err instanceof ApiError ? err.message : "That didn't save. Check your connection and try again.");
+
+  const archive = async () => {
+    try {
+      await api.updateBoard(boardId, { archived: true });
+      await refresh();
+      onClose();
+      navigate("/");
+      push(`Archived “${name}”`, async () => {
+        await api.updateBoard(boardId, { archived: false });
+        await refresh();
+      });
+    } catch (err) {
+      fail(err);
+    }
+  };
+  const trash = async () => {
+    try {
+      await api.trashBoard(boardId);
+      await refresh();
+      onClose();
+      navigate("/");
+      push(`Moved “${name}” to the trash`, async () => {
+        await api.restoreBoard(boardId);
+        await refresh();
+      });
+    } catch (err) {
+      fail(err);
+    }
+  };
+
+  return (
+    <fieldset className="settings-group">
+      <legend>This board</legend>
+      {confirming ? (
+        <>
+          <p>
+            Delete “{name}” and everything on it? It goes to the trash, where you can restore it for 30 days.
+          </p>
+          <div className="dialog-actions">
+            <button type="button" onClick={() => void trash()}>
+              Delete board
+            </button>
+            <button type="button" className="text-button" onClick={() => setConfirming(false)}>
+              Keep it
+            </button>
+          </div>
+        </>
+      ) : (
+        <div className="dialog-actions">
+          <button type="button" className="text-button" onClick={() => void archive()}>
+            Archive board
+          </button>
+          <button type="button" className="text-button" onClick={() => setConfirming(true)}>
+            Delete board…
+          </button>
+        </div>
+      )}
+      <p className="muted">Archived boards move off your list but keep everything, and can be brought back any time.</p>
     </fieldset>
   );
 }

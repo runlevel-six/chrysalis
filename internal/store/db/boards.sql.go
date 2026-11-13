@@ -7,6 +7,7 @@ package db
 
 import (
 	"context"
+	"database/sql"
 )
 
 const addBoardMember = `-- name: AddBoardMember :exec
@@ -111,6 +112,45 @@ func (q *Queries) GetBoardForUser(ctx context.Context, arg GetBoardForUserParams
 	return i, err
 }
 
+const getBoardForUserIncludingTrashed = `-- name: GetBoardForUserIncludingTrashed :one
+SELECT boards.id, boards.owner_id, boards.name, boards.icon, boards.background_type, boards.background_value, boards.settings_json, boards.position, boards.archived_at, boards.created_at, boards.updated_at, boards.deleted_at, boards.version, board_members.role
+FROM boards
+JOIN board_members ON board_members.board_id = boards.id
+WHERE board_members.user_id = ? AND boards.id = ?
+`
+
+type GetBoardForUserIncludingTrashedParams struct {
+	UserID string
+	ID     string
+}
+
+type GetBoardForUserIncludingTrashedRow struct {
+	Board Board
+	Role  string
+}
+
+func (q *Queries) GetBoardForUserIncludingTrashed(ctx context.Context, arg GetBoardForUserIncludingTrashedParams) (GetBoardForUserIncludingTrashedRow, error) {
+	row := q.db.QueryRowContext(ctx, getBoardForUserIncludingTrashed, arg.UserID, arg.ID)
+	var i GetBoardForUserIncludingTrashedRow
+	err := row.Scan(
+		&i.Board.ID,
+		&i.Board.OwnerID,
+		&i.Board.Name,
+		&i.Board.Icon,
+		&i.Board.BackgroundType,
+		&i.Board.BackgroundValue,
+		&i.Board.SettingsJson,
+		&i.Board.Position,
+		&i.Board.ArchivedAt,
+		&i.Board.CreatedAt,
+		&i.Board.UpdatedAt,
+		&i.Board.DeletedAt,
+		&i.Board.Version,
+		&i.Role,
+	)
+	return i, err
+}
+
 const lastBoardPosition = `-- name: LastBoardPosition :one
 SELECT position FROM boards WHERE owner_id = ? ORDER BY position DESC LIMIT 1
 `
@@ -122,6 +162,59 @@ func (q *Queries) LastBoardPosition(ctx context.Context, ownerID string) (string
 	var position string
 	err := row.Scan(&position)
 	return position, err
+}
+
+const listArchivedBoardsForUser = `-- name: ListArchivedBoardsForUser :many
+SELECT boards.id, boards.owner_id, boards.name, boards.icon, boards.background_type, boards.background_value, boards.settings_json, boards.position, boards.archived_at, boards.created_at, boards.updated_at, boards.deleted_at, boards.version, board_members.role
+FROM boards
+JOIN board_members ON board_members.board_id = boards.id
+WHERE board_members.user_id = ?
+  AND boards.deleted_at IS NULL
+  AND boards.archived_at IS NOT NULL
+ORDER BY boards.archived_at DESC, boards.id
+`
+
+type ListArchivedBoardsForUserRow struct {
+	Board Board
+	Role  string
+}
+
+func (q *Queries) ListArchivedBoardsForUser(ctx context.Context, userID string) ([]ListArchivedBoardsForUserRow, error) {
+	rows, err := q.db.QueryContext(ctx, listArchivedBoardsForUser, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListArchivedBoardsForUserRow
+	for rows.Next() {
+		var i ListArchivedBoardsForUserRow
+		if err := rows.Scan(
+			&i.Board.ID,
+			&i.Board.OwnerID,
+			&i.Board.Name,
+			&i.Board.Icon,
+			&i.Board.BackgroundType,
+			&i.Board.BackgroundValue,
+			&i.Board.SettingsJson,
+			&i.Board.Position,
+			&i.Board.ArchivedAt,
+			&i.Board.CreatedAt,
+			&i.Board.UpdatedAt,
+			&i.Board.DeletedAt,
+			&i.Board.Version,
+			&i.Role,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listBoardsForUser = `-- name: ListBoardsForUser :many
@@ -177,18 +270,121 @@ func (q *Queries) ListBoardsForUser(ctx context.Context, userID string) ([]ListB
 	return items, nil
 }
 
+const listTrashedBoardsForOwner = `-- name: ListTrashedBoardsForOwner :many
+SELECT boards.id, boards.owner_id, boards.name, boards.icon, boards.background_type, boards.background_value, boards.settings_json, boards.position, boards.archived_at, boards.created_at, boards.updated_at, boards.deleted_at, boards.version, board_members.role
+FROM boards
+JOIN board_members ON board_members.board_id = boards.id
+WHERE board_members.user_id = ? AND board_members.role = 'owner'
+  AND boards.deleted_at IS NOT NULL
+ORDER BY boards.deleted_at DESC, boards.id
+`
+
+type ListTrashedBoardsForOwnerRow struct {
+	Board Board
+	Role  string
+}
+
+// Only owners delete boards, so only they see them in the trash.
+func (q *Queries) ListTrashedBoardsForOwner(ctx context.Context, userID string) ([]ListTrashedBoardsForOwnerRow, error) {
+	rows, err := q.db.QueryContext(ctx, listTrashedBoardsForOwner, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListTrashedBoardsForOwnerRow
+	for rows.Next() {
+		var i ListTrashedBoardsForOwnerRow
+		if err := rows.Scan(
+			&i.Board.ID,
+			&i.Board.OwnerID,
+			&i.Board.Name,
+			&i.Board.Icon,
+			&i.Board.BackgroundType,
+			&i.Board.BackgroundValue,
+			&i.Board.SettingsJson,
+			&i.Board.Position,
+			&i.Board.ArchivedAt,
+			&i.Board.CreatedAt,
+			&i.Board.UpdatedAt,
+			&i.Board.DeletedAt,
+			&i.Board.Version,
+			&i.Role,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const purgeTrashedBoards = `-- name: PurgeTrashedBoards :execrows
+DELETE FROM boards WHERE deleted_at IS NOT NULL AND deleted_at <= ?
+`
+
+// Columns, cards, labels, attachments and view state go with them (ON DELETE
+// CASCADE); attachment files are removed first by PurgeFiles.
+func (q *Queries) PurgeTrashedBoards(ctx context.Context, deletedAt sql.NullString) (int64, error) {
+	result, err := q.db.ExecContext(ctx, purgeTrashedBoards, deletedAt)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const setBoardDeleted = `-- name: SetBoardDeleted :one
+UPDATE boards SET deleted_at = ?, updated_at = ?, version = version + 1
+WHERE id = ?
+RETURNING id, owner_id, name, icon, background_type, background_value, settings_json, position, archived_at, created_at, updated_at, deleted_at, version
+`
+
+type SetBoardDeletedParams struct {
+	DeletedAt sql.NullString
+	UpdatedAt string
+	ID        string
+}
+
+func (q *Queries) SetBoardDeleted(ctx context.Context, arg SetBoardDeletedParams) (Board, error) {
+	row := q.db.QueryRowContext(ctx, setBoardDeleted, arg.DeletedAt, arg.UpdatedAt, arg.ID)
+	var i Board
+	err := row.Scan(
+		&i.ID,
+		&i.OwnerID,
+		&i.Name,
+		&i.Icon,
+		&i.BackgroundType,
+		&i.BackgroundValue,
+		&i.SettingsJson,
+		&i.Position,
+		&i.ArchivedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+		&i.Version,
+	)
+	return i, err
+}
+
 const updateBoard = `-- name: UpdateBoard :one
-UPDATE boards SET name = ?, settings_json = ?, background_type = ?, background_value = ?,
-    updated_at = ?, version = version + 1
+UPDATE boards SET name = ?, icon = ?, position = ?, settings_json = ?, background_type = ?, background_value = ?,
+    archived_at = ?, updated_at = ?, version = version + 1
 WHERE id = ?
 RETURNING id, owner_id, name, icon, background_type, background_value, settings_json, position, archived_at, created_at, updated_at, deleted_at, version
 `
 
 type UpdateBoardParams struct {
 	Name            string
+	Icon            string
+	Position        string
 	SettingsJson    string
 	BackgroundType  string
 	BackgroundValue string
+	ArchivedAt      sql.NullString
 	UpdatedAt       string
 	ID              string
 }
@@ -196,9 +392,12 @@ type UpdateBoardParams struct {
 func (q *Queries) UpdateBoard(ctx context.Context, arg UpdateBoardParams) (Board, error) {
 	row := q.db.QueryRowContext(ctx, updateBoard,
 		arg.Name,
+		arg.Icon,
+		arg.Position,
 		arg.SettingsJson,
 		arg.BackgroundType,
 		arg.BackgroundValue,
+		arg.ArchivedAt,
 		arg.UpdatedAt,
 		arg.ID,
 	)

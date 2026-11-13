@@ -4,6 +4,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -14,6 +15,10 @@ import (
 
 func (s *server) registerContent(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/v1/boards/{id}/detail", s.boardDetail)
+	mux.HandleFunc("DELETE /api/v1/boards/{id}", s.trashBoard(true))
+	mux.HandleFunc("POST /api/v1/boards/{id}/restore", s.trashBoard(false))
+	mux.HandleFunc("GET /api/v1/me/boards/archived", s.listBoardsWith(s.boards.ListArchived))
+	mux.HandleFunc("GET /api/v1/me/boards/trash", s.listBoardsWith(s.boards.ListTrashed))
 	mux.HandleFunc("GET /api/v1/boards/{id}/trash", s.boardTrash)
 	mux.HandleFunc("PUT /api/v1/boards/{id}/view", s.setBoardView)
 	mux.HandleFunc("POST /api/v1/boards/{id}/columns", s.createColumn)
@@ -336,4 +341,26 @@ func (s *server) setDescription(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, d)
+}
+
+func (s *server) trashBoard(trashed bool) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		b, err := s.boards.SetBoardTrashed(r.Context(), userID(r), r.PathValue("id"), trashed)
+		if err != nil {
+			s.serviceError(w, r, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, b)
+	}
+}
+
+func (s *server) listBoardsWith(list func(context.Context, string) ([]service.Board, error)) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		b, err := list(r.Context(), userID(r))
+		if err != nil {
+			s.serviceError(w, r, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"boards": b})
+	}
 }

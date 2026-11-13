@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/oklog/ulid/v2"
@@ -51,6 +52,8 @@ type Board struct {
 	Background Background    `json:"background"`
 	Settings   BoardSettings `json:"settings"`
 	Position   string        `json:"position"`
+	Archived   bool          `json:"archived"`
+	DeletedAt  string        `json:"deletedAt,omitempty"`
 	Role       Role          `json:"role"`
 	Version    int64         `json:"version"`
 	CreatedAt  string        `json:"createdAt"`
@@ -68,6 +71,7 @@ func boardFromRow(b db.Board, role string) Board {
 		Background: Background{Type: b.BackgroundType, Value: b.BackgroundValue},
 		Settings:   parseSettings(b.SettingsJson),
 		Position:   b.Position, Role: Role(role), Version: b.Version,
+		Archived: b.ArchivedAt.Valid, DeletedAt: b.DeletedAt.String,
 		CreatedAt: b.CreatedAt, UpdatedAt: b.UpdatedAt,
 	}
 }
@@ -197,4 +201,82 @@ func (s *Boards) Get(ctx context.Context, userID, boardID string) (Board, error)
 		return Board{}, err
 	}
 	return boardFromRow(r.Board, r.Role), nil
+}
+
+// ListArchived returns the user's archived boards, most recently archived first.
+func (s *Boards) ListArchived(ctx context.Context, userID string) ([]Board, error) {
+	rows, err := s.st.ListArchivedBoardsForUser(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]Board, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, boardFromRow(r.Board, r.Role))
+	}
+	return out, nil
+}
+
+// ListTrashed returns boards the user deleted that can still be restored.
+func (s *Boards) ListTrashed(ctx context.Context, userID string) ([]Board, error) {
+	rows, err := s.st.ListTrashedBoardsForOwner(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]Board, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, boardFromRow(r.Board, r.Role))
+	}
+	return out, nil
+}
+
+// SetBoardTrashed moves a board to the trash, or restores it. Only its owner
+// can. Everything on it stays as it was, and comes back with it.
+func (s *Boards) SetBoardTrashed(ctx context.Context, userID, boardID string, trashed bool) (Board, error) {
+	var out Board
+	err := s.tx(ctx, func(q *db.Queries) error {
+		r, err := q.GetBoardForUserIncludingTrashed(ctx, db.GetBoardForUserIncludingTrashedParams{UserID: userID, ID: boardID})
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrNotFound
+		}
+		if err != nil {
+			return err
+		}
+		if Role(r.Role) != RoleOwner {
+			return ErrForbidden
+		}
+		if r.Board.DeletedAt.Valid == trashed {
+			out = boardFromRow(r.Board, r.Role)
+			return nil
+		}
+		now := store.FormatTime(s.now())
+		deleted := sql.NullString{}
+		if trashed {
+			deleted = sql.NullString{String: now, Valid: true}
+		}
+		row, err := q.SetBoardDeleted(ctx, db.SetBoardDeletedParams{ID: boardID, DeletedAt: deleted, UpdatedAt: now})
+		out = boardFromRow(row, r.Role)
+		return err
+	})
+	if err == nil {
+		s.emit(ctx, sse.Event{BoardID: boardID, Kind: "board", EntityID: boardID})
+		s.emit(ctx, sse.Event{UserID: userID, Kind: "boards", EntityID: boardID})
+	}
+	return out, err
+}
+
+// MaxBoardIconLen bounds a board's icon: one emoji, which can be a sequence
+// of several code points (a family, a flag, a skin tone).
+const MaxBoardIconLen = 16
+
+func cleanIcon(icon string) (string, error) {
+	icon = strings.TrimSpace(icon)
+	if utf8.RuneCountInString(icon) > MaxBoardIconLen || len(icon) > 64 {
+		return "", &ValidationError{"Use a single emoji for the board's icon."}
+	}
+	for _, r := range icon {
+		if unicode.IsControl(r) || unicode.IsSpace(r) {
+			return "", &ValidationError{"Use a single emoji for the board's icon."}
+		}
+	}
+	return icon, nil
 }

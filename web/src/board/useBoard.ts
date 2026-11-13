@@ -275,10 +275,10 @@ export function useBoardActions(boardId: string) {
 
   // Board
 
-  const updateBoard = async (p: { name?: string; settings?: BoardSettings; background?: Board["background"] }, label?: string) => {
+  const updateBoard = async (p: { name?: string; icon?: string; settings?: BoardSettings; background?: Board["background"] }, label?: string) => {
     const d = get();
     if (!d) return;
-    const before = { name: d.board.name, settings: d.board.settings, background: d.board.background };
+    const before = { name: d.board.name, icon: d.board.icon, settings: d.board.settings, background: d.board.background };
     const updated = await send(
       () =>
         patch((x) => ({

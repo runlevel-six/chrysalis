@@ -283,7 +283,14 @@ export function BoardPage({
   return (
     <div className={`board${bgStyle ? " has-background" : ""}`} style={bgStyle}>
       <div className="board-head">
-        <h1>{d.board.name}</h1>
+        <h1>
+          {d.board.icon && (
+            <span className="board-icon" aria-hidden="true">
+              {d.board.icon}
+            </span>
+          )}
+          {d.board.name}
+        </h1>
         <span className="save-state muted" aria-live="polite">
           {saving ? "Saving…" : "Saved"}
         </span>
@@ -433,6 +440,8 @@ export function BoardPage({
       {settingsOpen && (
         <BoardSettingsDialog
           boardId={id}
+          icon={d.board.icon}
+          role={d.board.role}
           name={d.board.name}
           settings={d.board.settings}
           background={d.board.background}

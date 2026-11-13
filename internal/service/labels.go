@@ -16,6 +16,7 @@ import (
 
 	"github.com/oklog/ulid/v2"
 
+	"github.com/runlevel-six/chrysalis/internal/order"
 	"github.com/runlevel-six/chrysalis/internal/sse"
 	"github.com/runlevel-six/chrysalis/internal/store"
 	"github.com/runlevel-six/chrysalis/internal/store/db"
@@ -171,6 +172,9 @@ func parseSettings(raw string) BoardSettings {
 
 type BoardPatch struct {
 	Name       *string        `json:"name"`
+	Icon       *string        `json:"icon"`
+	Position   *string        `json:"position"` // among the user's boards
+	Archived   *bool          `json:"archived"` // owner only
 	Settings   *BoardSettings `json:"settings"`
 	Background *Background    `json:"background"`
 }
@@ -217,6 +221,27 @@ func (s *Boards) UpdateBoard(ctx context.Context, userID, boardID string, p Boar
 			return err
 		}
 		name, settings := b.Board.Name, parseSettings(b.Board.SettingsJson)
+		icon, position, archivedAt := b.Board.Icon, b.Board.Position, b.Board.ArchivedAt
+		if p.Icon != nil {
+			if icon, err = cleanIcon(*p.Icon); err != nil {
+				return err
+			}
+		}
+		if p.Position != nil {
+			if err := order.Valid(*p.Position); err != nil {
+				return &ValidationError{"invalid position"}
+			}
+			position = *p.Position
+		}
+		if p.Archived != nil && *p.Archived != archivedAt.Valid {
+			if r != RoleOwner {
+				return ErrForbidden
+			}
+			archivedAt = sql.NullString{}
+			if *p.Archived {
+				archivedAt = sql.NullString{String: store.FormatTime(s.now()), Valid: true}
+			}
+		}
 		if p.Name != nil {
 			if name, err = cleanName(*p.Name, "board", MaxBoardNameLen); err != nil {
 				return err
@@ -249,7 +274,8 @@ func (s *Boards) UpdateBoard(ctx context.Context, userID, boardID string, p Boar
 			bgType, bgValue = p.Background.Type, p.Background.Value
 		}
 		row, err := q.UpdateBoard(ctx, db.UpdateBoardParams{
-			ID: boardID, Name: name, SettingsJson: string(raw), BackgroundType: bgType, BackgroundValue: bgValue,
+			ID: boardID, Name: name, Icon: icon, Position: position, SettingsJson: string(raw),
+			BackgroundType: bgType, BackgroundValue: bgValue, ArchivedAt: archivedAt,
 			UpdatedAt: store.FormatTime(s.now()),
 		})
 		out = boardFromRow(row, string(r))
@@ -257,6 +283,9 @@ func (s *Boards) UpdateBoard(ctx context.Context, userID, boardID string, p Boar
 	})
 	if err == nil {
 		s.emit(ctx, sse.Event{BoardID: out.ID, Kind: "board", EntityID: out.ID})
+		if p.Name != nil || p.Icon != nil || p.Position != nil || p.Archived != nil {
+			s.emit(ctx, sse.Event{UserID: userID, Kind: "boards", EntityID: out.ID})
+		}
 	}
 	return out, err
 }

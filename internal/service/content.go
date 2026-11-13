@@ -951,7 +951,7 @@ func (s *Boards) LastOpenedBoard(ctx context.Context, userID string) (string, er
 	return id, err
 }
 
-// PurgeTrash permanently deletes cards and columns trashed before cutoff.
+// PurgeTrash permanently deletes everything trashed before cutoff.
 func PurgeTrash(ctx context.Context, st *store.Store, cutoff time.Time) (int64, error) {
 	c := sql.NullString{String: store.FormatTime(cutoff), Valid: true}
 	n1, err := st.PurgeTrashedCards(ctx, c)
@@ -971,5 +971,9 @@ func PurgeTrash(ctx context.Context, st *store.Store, cutoff time.Time) (int64, 
 		return 0, err
 	}
 	n5, err := st.PurgeTrashedChecklists(ctx, c)
-	return n1 + n2 + n3 + n4 + n5, err
+	if err != nil {
+		return 0, err
+	}
+	n6, err := st.PurgeTrashedBoards(ctx, c)
+	return n1 + n2 + n3 + n4 + n5 + n6, err
 }

@@ -24,6 +24,8 @@ export type Board = {
   background: { type: "color" | "gradient" | "image"; value: string };
   settings: BoardSettings;
   position: string;
+  archived: boolean;
+  deletedAt?: string;
   role: "owner" | "editor" | "viewer";
   version: number;
   createdAt: string;
@@ -224,8 +226,14 @@ export const api = {
     if (!res.ok) throw new ApiError(res.status, (body as { error?: string })?.error ?? res.statusText, body);
     return body as Attachment;
   },
-  updateBoard: (id: string, patch: { name?: string; settings?: BoardSettings; background?: Board["background"] }) =>
-    request<Board>("PATCH", `/boards/${encodeURIComponent(id)}`, patch),
+  updateBoard: (
+    id: string,
+    patch: { name?: string; icon?: string; position?: string; archived?: boolean; settings?: BoardSettings; background?: Board["background"] },
+  ) => request<Board>("PATCH", `/boards/${encodeURIComponent(id)}`, patch),
+  trashBoard: (id: string) => request<Board>("DELETE", `/boards/${encodeURIComponent(id)}`),
+  restoreBoard: (id: string) => request<Board>("POST", `/boards/${encodeURIComponent(id)}/restore`),
+  archivedBoards: () => request<{ boards: Board[] }>("GET", "/me/boards/archived").then((r) => r.boards),
+  trashedBoards: () => request<{ boards: Board[] }>("GET", "/me/boards/trash").then((r) => r.boards),
   archivedCards: (boardId: string) =>
     request<{ cards: Card[] }>("GET", `/boards/${encodeURIComponent(boardId)}/archived`).then((r) => r.cards),
   createLabel: (boardId: string, name: string, color: LabelColor) =>

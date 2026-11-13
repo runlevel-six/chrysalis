@@ -9,6 +9,7 @@ import markUrl from "./art/mark-small.svg";
 import emptyStateSvg from "./art/empty-state.svg?raw";
 import { Link, navigate, usePath } from "./router";
 import { BoardPage } from "./board/BoardPage";
+import { BoardDrawers, BoardTile } from "./Boards";
 import { rememberReturn, SettingsPage, useBrandingThemes } from "./Settings";
 import { applyAppearance, DEFAULT_PREFS, watchSystem } from "./appearance";
 import { Icon } from "./ui";
@@ -131,16 +132,13 @@ function BoardList() {
       {boards.data?.length === 0 && <EmptyState>A fresh start. Create your first board below.</EmptyState>}
       {boards.data && boards.data.length > 0 && (
         <ul className="board-list">
-          {boards.data.map((b) => (
-            <li key={b.id}>
-              <Link to={`/b/${b.id}`} className="board-tile">
-                {b.name}
-              </Link>
-            </li>
+          {boards.data.map((b, i) => (
+            <BoardTile key={b.id} board={b} boards={boards.data} index={i} />
           ))}
         </ul>
       )}
       <NewBoardForm />
+      <BoardDrawers />
     </section>
   );
 }

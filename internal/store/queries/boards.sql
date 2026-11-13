@@ -32,7 +32,41 @@ WHERE board_members.user_id = ?
   AND boards.deleted_at IS NULL;
 
 -- name: UpdateBoard :one
-UPDATE boards SET name = ?, settings_json = ?, background_type = ?, background_value = ?,
-    updated_at = ?, version = version + 1
+UPDATE boards SET name = ?, icon = ?, position = ?, settings_json = ?, background_type = ?, background_value = ?,
+    archived_at = ?, updated_at = ?, version = version + 1
 WHERE id = ?
 RETURNING *;
+
+-- name: ListArchivedBoardsForUser :many
+SELECT sqlc.embed(boards), board_members.role
+FROM boards
+JOIN board_members ON board_members.board_id = boards.id
+WHERE board_members.user_id = ?
+  AND boards.deleted_at IS NULL
+  AND boards.archived_at IS NOT NULL
+ORDER BY boards.archived_at DESC, boards.id;
+
+-- name: ListTrashedBoardsForOwner :many
+-- Only owners delete boards, so only they see them in the trash.
+SELECT sqlc.embed(boards), board_members.role
+FROM boards
+JOIN board_members ON board_members.board_id = boards.id
+WHERE board_members.user_id = ? AND board_members.role = 'owner'
+  AND boards.deleted_at IS NOT NULL
+ORDER BY boards.deleted_at DESC, boards.id;
+
+-- name: GetBoardForUserIncludingTrashed :one
+SELECT sqlc.embed(boards), board_members.role
+FROM boards
+JOIN board_members ON board_members.board_id = boards.id
+WHERE board_members.user_id = ? AND boards.id = ?;
+
+-- name: SetBoardDeleted :one
+UPDATE boards SET deleted_at = ?, updated_at = ?, version = version + 1
+WHERE id = ?
+RETURNING *;
+
+-- name: PurgeTrashedBoards :execrows
+-- Columns, cards, labels, attachments and view state go with them (ON DELETE
+-- CASCADE); attachment files are removed first by PurgeFiles.
+DELETE FROM boards WHERE deleted_at IS NOT NULL AND deleted_at <= ?;
