@@ -26,6 +26,7 @@ import { flutterAfterMove, flutterFrom } from "../flutter";
 import { backgroundStyle } from "./backgrounds";
 import { holdSync } from "../live";
 import { navigate } from "../router";
+import { rememberReturn } from "../BackLink";
 import { useOffline } from "../offline";
 import { DEFAULT_PREFS, isDark } from "../appearance";
 import { ArchivedDialog, BoardSettingsDialog, CardMeta, CoverBand, CoverDialog, DatesDialog, LabelChip, LabelsDialog } from "./details";
@@ -398,7 +399,13 @@ export function BoardPage({
               onSelect: () => view.setHideCompleted(!view.hideCompleted),
             },
             { label: "Filter cards…", onSelect: () => setFilterOpen(true) },
-            { label: "Calendar", onSelect: () => navigate(`/calendar?board=${encodeURIComponent(id)}`) },
+            {
+              label: "Calendar",
+              onSelect: () => {
+                rememberReturn("calendar");
+                navigate(`/calendar?board=${encodeURIComponent(id)}`);
+              },
+            },
             ...(centeringOn
               ? [
                   {

@@ -104,12 +104,15 @@ test("move a card a day with the keyboard, and undo it", async ({ page, isMobile
   await expect(dayCell(page, day).getByRole("button", { name: /^Plant bulbs/ })).toBeVisible();
 });
 
-test("the calendar is reachable from the header and from a board", async ({ page }) => {
+test("the calendar is reachable from the header and from a board, with a way back", async ({ page }) => {
   const { boardId } = await boardWithDates(page);
   await page.getByRole("button", { name: "View" }).click();
   await page.getByRole("menuitem", { name: "Calendar" }).click();
   await expect(page).toHaveURL(new RegExp(`/calendar\\?board=${boardId}`));
   await expect(page.getByRole("heading", { name: "Calendar", level: 1 })).toBeVisible();
+  // And back to the board it was opened from.
+  await page.getByRole("link", { name: /^Back to / }).click();
+  await expect(page).toHaveURL(new RegExp(`/b/${boardId}$`));
   await page.goto("/");
   await page.getByRole("link", { name: "Calendar" }).click();
   await expect(page.getByRole("combobox", { name: "Boards shown" })).toHaveValue("");

@@ -29,6 +29,7 @@ import {
 } from "@dnd-kit/core";
 
 import { api, ApiError, type Calendar as CalendarData, type Card } from "./api";
+import { BackLink } from "./BackLink";
 import { useLiveSync } from "./live";
 import { navigate } from "./router";
 import { Icon } from "./ui";
@@ -150,6 +151,7 @@ export function CalendarPage() {
 
   return (
     <section className="page calendar-page">
+      <BackLink page="calendar" fallback={board ? `/b/${encodeURIComponent(board)}` : "/"} />
       <div className="calendar-head">
         <h1>Calendar</h1>
         <div className="calendar-controls">

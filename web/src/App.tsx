@@ -11,7 +11,8 @@ import { Link, navigate, usePath } from "./router";
 import { BoardPage } from "./board/BoardPage";
 import { BoardDrawers, BoardTile } from "./Boards";
 import { CalendarPage } from "./Calendar";
-import { rememberReturn, SettingsPage, useBrandingThemes } from "./Settings";
+import { SettingsPage, useBrandingThemes } from "./Settings";
+import { rememberReturn } from "./BackLink";
 import { CenteringPage } from "./CenteringSettings";
 import { applyAppearance, DEFAULT_PREFS, watchSystem } from "./appearance";
 import { Dialog, Icon } from "./ui";
@@ -103,10 +104,10 @@ export function App() {
         </Link>
         {me.data && (
           <span className="header-right">
-            <Link to="/calendar" className="header-link" aria-label="Calendar" title="Calendar">
+            <Link to="/calendar" className="header-link" aria-label="Calendar" title="Calendar" onClick={() => rememberReturn("calendar")}>
               <Icon.Calendar />
             </Link>
-            <Link to="/settings" className="header-link" aria-label="Settings" onClick={rememberReturn}>
+            <Link to="/settings" className="header-link" aria-label="Settings" onClick={() => rememberReturn("settings")}>
               <Icon.Settings />
             </Link>
             <span className="muted">{me.data.displayName}</span>
