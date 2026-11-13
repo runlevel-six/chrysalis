@@ -153,3 +153,18 @@ test("no serious accessibility issues with focus, filter and hide-completed on",
     await expectAccessible(page, `overwhelm controls (${scheme})`);
   }
 });
+
+test("a soft limit shows gently and never blocks", async ({ page }) => {
+  await newBoard(page, ["Doing"]);
+  await page.getByRole("button", { name: "Doing options" }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByLabel("Soft limit").fill("1");
+  await dialog.getByRole("button", { name: "Set", exact: true }).click();
+  await dialog.getByRole("button", { name: "Close" }).click();
+  await addCards(page, "Doing", ["One", "Two"]);
+  const count = column(page, "Doing").locator(".column-count");
+  await expect(count).toHaveText("2/1");
+  await expect(count).toHaveClass(/over-limit/);
+  await page.reload();
+  await expect(column(page, "Doing").locator(".column-count")).toHaveText("2/1");
+});

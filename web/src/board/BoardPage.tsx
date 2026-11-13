@@ -134,6 +134,48 @@ export function BoardPage({
     return () => ro.disconnect();
   }, [columnCount, hasAddColumn]);
 
+  // Scroll position per board, best effort (§3.3). Kept on this device:
+  // screens differ, so another device's scroll wouldn't mean much here.
+  const restored = useRef(false);
+  useEffect(() => {
+    restored.current = false;
+  }, [id]);
+  useEffect(() => {
+    const el = columnsEl.current;
+    if (!el || !d) return;
+    const key = `chrysalis.scroll.${id}`;
+    if (!restored.current) {
+      restored.current = true;
+      try {
+        const saved = JSON.parse(localStorage.getItem(key) ?? "null") as { x: number; y: number } | null;
+        if (saved) {
+          el.scrollLeft = saved.x;
+          window.scrollTo(0, saved.y);
+        }
+      } catch {
+        // storage blocked or garbled: start at the top
+      }
+    }
+    let t: number | undefined;
+    const save = () => {
+      window.clearTimeout(t);
+      t = window.setTimeout(() => {
+        try {
+          localStorage.setItem(key, JSON.stringify({ x: el.scrollLeft, y: window.scrollY }));
+        } catch {
+          // fine
+        }
+      }, 250);
+    };
+    el.addEventListener("scroll", save, { passive: true });
+    window.addEventListener("scroll", save, { passive: true });
+    return () => {
+      window.clearTimeout(t);
+      el.removeEventListener("scroll", save);
+      window.removeEventListener("scroll", save);
+    };
+  }, [id, d]);
+
   // Remember this as the board to come back to (§3.3).
   useEffect(() => {
     void api.setView(id, { opened: true }).catch(() => {});
@@ -677,6 +719,7 @@ function ColumnOptions({
   const [isDone, setIsDone] = useState(column.isDone);
   const [color, setColor] = useState(column.color);
   const [colorMode, setColorMode] = useState(column.colorMode);
+  const [limit, setLimit] = useState(column.softLimit ? String(column.softLimit) : "");
   const i = columns.findIndex((c) => c.id === column.id);
   const move = (dir: -1 | 1) => {
     // New position between the neighbors on the side we're moving to.
@@ -784,6 +827,35 @@ function ColumnOptions({
             </div>
           )}
         </fieldset>
+        <form
+          className="field"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const n = Math.max(0, Math.floor(Number(limit) || 0));
+            if (n === (column.softLimit ?? 0)) return;
+            const text = n ? `Set a soft limit of ${n} on “${column.name}”` : `Removed the soft limit from “${column.name}”`;
+            void actions.updateColumn(column, { softLimit: n }, text);
+          }}
+        >
+          <label className="field">
+            Soft limit
+            <span className="muted">A gentle reminder of how many cards feel right here. It never blocks anything.</span>
+            <div className="row">
+              <input
+                type="number"
+                min={0}
+                max={999}
+                inputMode="numeric"
+                value={limit}
+                placeholder="None"
+                onChange={(e) => setLimit(e.target.value)}
+              />
+              <button type="submit" disabled={Math.floor(Number(limit) || 0) === (column.softLimit ?? 0)}>
+                Set
+              </button>
+            </div>
+          </label>
+        </form>
         <label className="check">
           <input
             type="checkbox"

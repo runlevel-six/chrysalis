@@ -216,6 +216,9 @@ export function useBoardActions(boardId: string) {
     if (p.name !== undefined) before.name = col.name;
     if (p.position !== undefined) before.position = col.position;
     if (p.isDone !== undefined) before.isDone = col.isDone;
+    if (p.softLimit !== undefined) before.softLimit = col.softLimit ?? 0;
+    if (p.color !== undefined) before.color = col.color;
+    if (p.colorMode !== undefined) before.colorMode = col.colorMode;
     const updated = await send(
       () => putColumn({ ...col, ...p, softLimit: p.softLimit === undefined ? col.softLimit : p.softLimit || null }),
       () => api.updateColumn(col.id, p),
