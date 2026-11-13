@@ -1,0 +1,10 @@
+# The backup job only reads and writes the volume; it needs no network.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: chrysalis-backup
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: chrysalis-backup
+  policyTypes: [Ingress, Egress]

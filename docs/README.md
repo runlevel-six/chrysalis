@@ -10,16 +10,21 @@ below pick out what each kind of reader needs first; every page is listed once u
 ### Run it for your household
 
 1. [Configuration reference](reference/configuration.md): every setting, including the two ways to sign people in.
-2. [Branding reference](reference/branding.md): add your own themes, icon and name.
+2. [Back up and restore](how-to/back-up-and-restore.md): turn on daily backups, copy them somewhere safe, and restore
+   one.
+3. [Branding reference](reference/branding.md): add your own themes, icon and name.
 
 ### Understand how it's built
 
 1. [Design document](DESIGN.md): goals, the UX specification, architecture, data and security decisions.
+2. [How backups work](explanation/backups.md): consistent snapshots, retention, and why the server schedules its own.
 
 ## All pages
 
 | Page | Kind | What it covers |
 | --- | --- | --- |
 | [Design document](DESIGN.md) | Explanation | Why Chrysalis is built the way it is, and what it will and won't do |
-| [Configuration](reference/configuration.md) | Reference | Every `CHRYSALIS_*` environment variable |
+| [Configuration](reference/configuration.md) | Reference | Every `CHRYSALIS_*` environment variable, and the `chrysalis admin` commands |
 | [Branding](reference/branding.md) | Reference | `CHRYSALIS_BRANDING_DIR`: theme schema, contrast checks, icon and name |
+| [Back up and restore](how-to/back-up-and-restore.md) | How-to | Daily backups, backing up by hand, and restoring with Compose or Kubernetes |
+| [How backups work](explanation/backups.md) | Explanation | What a backup holds, how it stays consistent, retention, and the CronJob trade-off |

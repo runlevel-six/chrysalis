@@ -31,6 +31,9 @@ func TestLoadDefaults(t *testing.T) {
 	if c.AuthMode != AuthOIDC || c.ListenAddr != ":8080" || c.DataDir != "/data" || c.SessionTTL != 720*time.Hour || c.TrashRetention != 30*24*time.Hour || c.MaxUploadBytes != 25<<20 || c.StorageBackend != "local" {
 		t.Errorf("unexpected defaults: %+v", c)
 	}
+	if c.Backup != (Backup{Dir: "/data/backups", KeepDaily: 7, KeepWeekly: 4, Schedule: "off"}) {
+		t.Errorf("Backup = %+v", c.Backup)
+	}
 	if got := c.BaseURL.String(); got != "https://board.example.home" {
 		t.Errorf("BaseURL = %q, want trailing slash trimmed", got)
 	}
@@ -61,6 +64,9 @@ func TestLoadErrors(t *testing.T) {
 		{"bad trash retention", map[string]string{"CHRYSALIS_BASE_URL": "http://localhost:8080", "CHRYSALIS_AUTH_MODE": "dev", "CHRYSALIS_DEV_MODE": "true", "CHRYSALIS_TRASH_RETENTION_DAYS": "0"}, "TRASH_RETENTION_DAYS"},
 		{"upload limit zero", map[string]string{"CHRYSALIS_BASE_URL": "http://localhost:8080", "CHRYSALIS_AUTH_MODE": "dev", "CHRYSALIS_DEV_MODE": "true", "CHRYSALIS_MAX_UPLOAD_MB": "0"}, "MAX_UPLOAD_MB"},
 		{"s3 not yet", map[string]string{"CHRYSALIS_BASE_URL": "http://localhost:8080", "CHRYSALIS_AUTH_MODE": "dev", "CHRYSALIS_DEV_MODE": "true", "CHRYSALIS_STORAGE_BACKEND": "s3"}, "isn't available yet"},
+		{"bad backup schedule", map[string]string{"CHRYSALIS_BASE_URL": "http://localhost:8080", "CHRYSALIS_AUTH_MODE": "dev", "CHRYSALIS_DEV_MODE": "true", "CHRYSALIS_BACKUP_SCHEDULE": "hourly"}, "BACKUP_SCHEDULE"},
+		{"no daily backups", map[string]string{"CHRYSALIS_BASE_URL": "http://localhost:8080", "CHRYSALIS_AUTH_MODE": "dev", "CHRYSALIS_DEV_MODE": "true", "CHRYSALIS_BACKUP_KEEP_DAILY": "0"}, "BACKUP_KEEP_DAILY"},
+		{"negative weekly backups", map[string]string{"CHRYSALIS_BASE_URL": "http://localhost:8080", "CHRYSALIS_AUTH_MODE": "dev", "CHRYSALIS_DEV_MODE": "true", "CHRYSALIS_BACKUP_KEEP_WEEKLY": "-1"}, "BACKUP_KEEP_WEEKLY"},
 		{"bad ttl", map[string]string{"CHRYSALIS_BASE_URL": "http://localhost:8080", "CHRYSALIS_AUTH_MODE": "dev", "CHRYSALIS_DEV_MODE": "true", "CHRYSALIS_SESSION_TTL": "forever"}, "SESSION_TTL"},
 	}
 	for _, tt := range tests {
