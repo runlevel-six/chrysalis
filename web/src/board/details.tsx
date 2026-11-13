@@ -6,8 +6,9 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { api, ApiError, attachmentUrl, LABEL_COLORS, type Board, type Reminder, type BoardSettings, type Card, type Label, type LabelColor } from "../api";
+import { api, ApiError, attachmentUrl, LABEL_COLORS, type Board, type CustomField, type Reminder, type BoardSettings, type Card, type Label, type LabelColor } from "../api";
 import { BACKGROUND_COLORS, GRADIENTS } from "./backgrounds";
+import { FieldsSettings } from "./Fields";
 import { attachmentsKey } from "./Attachments";
 import { Dialog, Icon } from "../ui";
 import { useUndo } from "../undo";
@@ -287,6 +288,7 @@ export function BoardSettingsDialog({
   settings,
   background,
   labels,
+  fields,
   actions,
   centeringLine,
   onClose,
@@ -298,6 +300,7 @@ export function BoardSettingsDialog({
   settings: BoardSettings;
   background: Board["background"];
   labels: Label[];
+  fields: CustomField[];
   actions: Actions;
   /** The per-person centering-line override, when the line is turned on. */
   centeringLine?: { show: boolean; set: (show: boolean) => void };
@@ -397,6 +400,8 @@ export function BoardSettingsDialog({
           </label>
         </fieldset>
       )}
+
+      <FieldsSettings fields={fields} actions={actions} />
 
       <IconPicker icon={icon} actions={actions} />
 

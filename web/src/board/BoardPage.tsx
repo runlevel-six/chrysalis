@@ -24,6 +24,7 @@ import { api, ApiError, LABEL_COLORS, type BoardDetail, type Card, type Column, 
 import { Dialog, Icon, Menu } from "../ui";
 import { flutterAfterMove, flutterFrom } from "../flutter";
 import { backgroundStyle } from "./backgrounds";
+import { CardFields } from "./Fields";
 import { holdSync } from "../live";
 import { navigate } from "../router";
 import { rememberReturn } from "../BackLink";
@@ -272,9 +273,11 @@ export function BoardPage({
       void actions.updateCard(c, { archived: true }, `Archived “${c.title}”`);
     },
     trash: (c) => void actions.trashCard(c),
+    setField: (c, f, v) => void actions.setCardField(c, f, v),
   };
   const ctx: CardContext = {
     labels: [...d.labels].sort(byPosition),
+    fields: [...(d.fields ?? [])].sort(byPosition),
     settings: d.board.settings,
     highlightOverdue: me.data?.prefs?.highlightOverdue ?? false,
   };
@@ -556,6 +559,7 @@ export function BoardPage({
           name={d.board.name}
           settings={d.board.settings}
           background={d.board.background}
+          fields={d.fields ?? []}
           labels={ctx.labels}
           actions={actions}
           centeringLine={centeringOn ? { show: view.centeringLine !== false, set: view.setCenteringLine } : undefined}
@@ -649,6 +653,7 @@ function CardFull({
       <CoverBand card={card} large />
       <p className="muted">Column: {column?.name ?? "unknown"}</p>
       <CardMeta card={card} labels={ctx.labels} />
+      <CardFields card={card} fields={ctx.fields} readOnly={readOnly} onSet={(f, v) => actions.setField(card, f, v)} />
       <Suspense fallback={<p className="muted description-loading">Loading description…</p>}>
         <LazyDescription card={card} readOnly={readOnly} />
       </Suspense>

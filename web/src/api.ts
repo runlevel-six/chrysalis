@@ -86,6 +86,8 @@ export type Card = {
   title: string;
   position: string;
   labelIds: string[];
+  /** Custom field values by field id: string, number, true, or a choice id. */
+  fields: Record<string, string | number | boolean>;
   cover: Cover;
   startAt: string | null; // "YYYY-MM-DD"
   dueAt: string | null; // "YYYY-MM-DD", or a UTC timestamp when dueHasTime
@@ -186,7 +188,22 @@ export type Checklist = { id: string; cardId: string; title: string; position: s
 /** ProseMirror JSON, or null when empty. */
 export type Description = { doc: unknown; version: number; updatedAt?: string };
 
-export type BoardDetail = { board: Board; columns: Column[]; cards: Card[]; labels: Label[]; view: BoardView };
+export type BoardDetail = { board: Board; columns: Column[]; cards: Card[]; labels: Label[]; fields: CustomField[]; view: BoardView };
+
+/** A custom field on a board (§4, Phase 2). */
+export type FieldType = "text" | "number" | "date" | "select" | "checkbox";
+export type FieldOption = { id: string; name: string; color: LabelColor | "" };
+export type CustomField = {
+  id: string;
+  boardId: string;
+  name: string;
+  type: FieldType;
+  options: FieldOption[];
+  showOnCollapsed: boolean;
+  position: string;
+  version: number;
+};
+export type FieldPatch = { name?: string; options?: FieldOption[]; showOnCollapsed?: boolean; position?: string };
 export type Trash = { columns: Column[]; cards: Card[] };
 
 export type ColumnPatch = Partial<Pick<Column, "name" | "color" | "colorMode" | "isDone" | "position">> & {
@@ -315,6 +332,13 @@ export type Notification = {
 };
 
 export const api = {
+  createField: (boardId: string, name: string, type: FieldType, options: FieldOption[] = []) =>
+    request<CustomField>("POST", `/boards/${encodeURIComponent(boardId)}/fields`, { name, type, options }),
+  updateField: (id: string, patch: FieldPatch) => request<CustomField>("PATCH", `/fields/${encodeURIComponent(id)}`, patch),
+  trashField: (id: string) => request<CustomField>("DELETE", `/fields/${encodeURIComponent(id)}`),
+  restoreField: (id: string) => request<CustomField>("POST", `/fields/${encodeURIComponent(id)}/restore`),
+  setCardField: (cardId: string, fieldId: string, value: string | number | boolean | null) =>
+    request<Card>("PUT", `/cards/${encodeURIComponent(cardId)}/fields/${encodeURIComponent(fieldId)}`, { value }),
   pushInfo: () => request<{ enabled: boolean; publicKey?: string }>("GET", "/push"),
   pushSubscribe: (subscription: PushSubscriptionJSON, label: string) =>
     request<void>("POST", "/me/push-subscriptions", { subscription, label }),

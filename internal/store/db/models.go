@@ -75,6 +75,13 @@ type CardDescription struct {
 	UpdatedBy string
 }
 
+type CardFieldValue struct {
+	CardID    string
+	FieldID   string
+	ValueJson string
+	UpdatedAt string
+}
+
 type CardLabel struct {
 	CardID  string
 	LabelID string
@@ -141,6 +148,20 @@ type Comment struct {
 	UpdatedAt string
 	DeletedAt sql.NullString
 	Version   int64
+}
+
+type CustomField struct {
+	ID              string
+	BoardID         string
+	Name            string
+	Type            string
+	OptionsJson     string
+	ShowOnCollapsed int64
+	Position        string
+	CreatedAt       string
+	UpdatedAt       string
+	DeletedAt       sql.NullString
+	Version         int64
 }
 
 type Label struct {

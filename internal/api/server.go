@@ -92,6 +92,7 @@ func NewHandler(d Deps) http.Handler {
 	s.registerContent(protected)
 	s.registerReminders(protected)
 	s.registerPush(protected)
+	s.registerFields(protected)
 	s.registerAttachments(protected)
 	s.registerImports(protected)
 	s.registerCentering(protected)

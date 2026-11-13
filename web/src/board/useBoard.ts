@@ -17,6 +17,10 @@ import {
   type Board,
   type BoardDetail,
   type BoardSettings,
+  type CustomField,
+  type FieldOption,
+  type FieldPatch,
+  type FieldType,
   type Card,
   type CardPatch,
   type Column,
@@ -91,7 +95,8 @@ export function useBoardActions(boardId: string) {
     if (!d) return;
     const position = keyBetween(lastPosition(d.cards.filter((c) => c.columnId === columnId)), null);
     const temp: Card = {
-      id: `tmp-${crypto.randomUUID()}`, boardId, columnId, title: title.trim(), position, labelIds: [], cover: { type: "none" },
+      id: `tmp-${crypto.randomUUID()}`, boardId, columnId, title: title.trim(), position, labelIds: [],
+      fields: {}, cover: { type: "none" },
       startAt: null, dueAt: null, dueHasTime: false, checklistDone: 0, checklistTotal: 0, hasDescription: false, completedAt: null, archivedAt: null,
       version: 0, createdAt: "", updatedAt: "",
     };
@@ -276,6 +281,45 @@ export function useBoardActions(boardId: string) {
     }
   };
 
+  // Custom fields
+
+  const putField = (f: CustomField) => patch((d) => ({ ...d, fields: [...d.fields.filter((x) => x.id !== f.id), f] }));
+
+  const createField = (name: string, type: FieldType, options: FieldOption[] = []) =>
+    send(() => {}, () => api.createField(boardId, name, type, options), putField);
+
+  const updateField = async (field: CustomField, p: FieldPatch) => {
+    await send(() => putField({ ...field, ...p }), () => api.updateField(field.id, p), (f) => {
+      putField(f);
+      if (p.options) void qc.invalidateQueries({ queryKey: key }); // values for removed choices are cleared
+    });
+  };
+
+  const trashField = async (field: CustomField) => {
+    const done = await send(
+      () => patch((d) => ({ ...d, fields: d.fields.filter((x) => x.id !== field.id) })),
+      () => api.trashField(field.id),
+      () => {},
+    );
+    if (done) {
+      push(`Deleted the field “${field.name}”`, async () => {
+        await api.restoreField(field.id);
+        await qc.invalidateQueries({ queryKey: key });
+      });
+    }
+  };
+
+  const setCardField = async (card: Card, field: CustomField, value: string | number | boolean | null) => {
+    const before = card.fields[field.id] ?? null;
+    const fields = { ...card.fields };
+    if (value === null || value === "" || value === false) delete fields[field.id];
+    else fields[field.id] = value;
+    const saved = await send(() => putCard({ ...card, fields }), () => api.setCardField(card.id, field.id, value), putCard);
+    if (saved) {
+      push(`Changed ${field.name} on “${card.title}”`, async () => putCard(await api.setCardField(card.id, field.id, before)));
+    }
+  };
+
   // Board
 
   const updateBoard = async (p: { name?: string; icon?: string; settings?: BoardSettings; background?: Board["background"] }, label?: string) => {
@@ -307,6 +351,7 @@ export function useBoardActions(boardId: string) {
     addCard, updateCard, moveCard, trashCard, restoreCard,
     addColumn, updateColumn, trashColumn, restoreColumn,
     createLabel, updateLabel, trashLabel, updateBoard,
+    createField, updateField, trashField, setCardField,
   };
 }
 
@@ -354,7 +399,29 @@ export function useViewState(boardId: string, detail: BoardDetail | undefined) {
         done();
         return;
       }
-      api.setView(boardId, batch).finally(done).catch(() => {
+      api
+        .setView(boardId, batch)
+        .then(() => {
+          // A refetch that landed while this was waiting may have brought
+          // back the older state; put this change back on top of it.
+          qc.setQueryData<BoardDetail>(detailKey(boardId), (d) =>
+            d
+              ? {
+                  ...d,
+                  view: {
+                    ...d.view,
+                    cards: { ...d.view.cards, ...batch.cards },
+                    columns: { ...d.view.columns, ...batch.columns },
+                    ...(batch.focus ? { focus: batch.focus } : {}),
+                    ...(batch.hideCompleted !== undefined ? { hideCompleted: batch.hideCompleted } : {}),
+                    ...(batch.centeringLine !== undefined ? { centeringLine: batch.centeringLine } : {}),
+                  },
+                }
+              : d,
+          );
+        })
+        .finally(done)
+        .catch(() => {
         // Not content: merge back and try again on the next change.
         pending.current = {
           cards: { ...batch.cards, ...pending.current.cards },
@@ -365,7 +432,7 @@ export function useViewState(boardId: string, detail: BoardDetail | undefined) {
         };
       });
     },
-    [boardId],
+    [boardId, qc],
   );
 
   const schedule = useCallback(
@@ -401,29 +468,31 @@ export function useViewState(boardId: string, detail: BoardDetail | undefined) {
     (change: { focus?: Focus; hideCompleted?: boolean; centeringLine?: boolean }) => {
       qc.setQueryData<BoardDetail>(detailKey(boardId), (d) => (d ? { ...d, view: { ...d.view, ...change } } : d));
       pending.current = { ...pending.current, ...change };
-      window.clearTimeout(timer.current);
       // Sooner than card toggles: these change the whole board.
-      timer.current = window.setTimeout(() => flush(), 150);
+      schedule(150);
     },
     [qc, boardId, schedule],
   );
 
   return useMemo(() => {
     const view = detail?.view;
-    const isExpanded = (cardId: string) => view?.cards[cardId] ?? view?.defaultCardState === "expanded";
-    const isCollapsed = (columnId: string) => view?.columns[columnId] ?? false;
+    // Changes not yet saved win over what the cache says: a refetch in the
+    // meantime only knows the server's older state.
+    const p = pending.current;
+    const isExpanded = (cardId: string) => pending.current.cards[cardId] ?? view?.cards[cardId] ?? view?.defaultCardState === "expanded";
+    const isCollapsed = (columnId: string) => pending.current.columns[columnId] ?? view?.columns[columnId] ?? false;
     return {
       isExpanded,
       isCollapsed,
       setExpanded: (ids: string[], expanded: boolean) =>
         set("cards", Object.fromEntries(ids.filter((id) => !id.startsWith("tmp-")).map((id) => [id, expanded]))),
       setCollapsed: (id: string, collapsed: boolean) => set("columns", { [id]: collapsed }),
-      focus: view?.focus ?? ({ type: "none" } as Focus),
-      hideCompleted: view?.hideCompleted ?? false,
+      focus: p.focus ?? view?.focus ?? ({ type: "none" } as Focus),
+      hideCompleted: p.hideCompleted ?? view?.hideCompleted ?? false,
       setFocus: (focus: Focus) => setBoardLevel({ focus }),
       setHideCompleted: (hideCompleted: boolean) => setBoardLevel({ hideCompleted }),
       /** The per-board override for the centering line; null follows the person's setting. */
-      centeringLine: view?.centeringLine ?? null,
+      centeringLine: p.centeringLine ?? view?.centeringLine ?? null,
       setCenteringLine: (centeringLine: boolean) => setBoardLevel({ centeringLine }),
     };
   }, [detail?.view, set, setBoardLevel]);

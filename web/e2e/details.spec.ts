@@ -190,3 +190,56 @@ test("column color as a header stripe or a full tint", async ({ page }) => {
   await page.reload();
   await expect(page.getByRole("region", { name: "Today", exact: true })).toHaveClass(/tint-full/);
 });
+
+test("custom fields: define them, fill them in, and show one on collapsed cards", async ({ page }) => {
+  await newBoard(page, ["To do"]);
+  await addCards(page, "To do", ["Plant bulbs"]);
+  let settings = await openSettings(page);
+  await settings.getByLabel("New field name").fill("Cost");
+  await settings.getByLabel("Kind of field").selectOption({ label: "Number" });
+  await settings.getByRole("button", { name: "Add field" }).click();
+  await settings.getByLabel("New field name").fill("Bed");
+  await settings.getByLabel("Kind of field").selectOption({ label: "Choice" });
+  await settings.getByRole("button", { name: "Add field" }).click();
+  // A new choice field opens for its choices.
+  await settings.getByLabel("Choice 1", { exact: true }).fill("North");
+  await settings.getByRole("button", { name: "Add a choice" }).click();
+  await settings.getByLabel("Choice 2", { exact: true }).fill("South");
+  await settings.getByLabel("Color of choice 2").selectOption("green");
+  await settings.getByLabel("Show on collapsed cards").check();
+  await settings.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(settings.getByText("Bed · Choice")).toBeVisible();
+  await settings.getByRole("button", { name: "Close" }).click();
+
+  const c = card(page, "Plant bulbs");
+  await c.getByRole("button", { name: "Expand card" }).click();
+  const fields = c.getByRole("group", { name: "Fields" });
+  const saved = () => page.waitForResponse((r) => r.request().method() === "PUT" && r.url().includes("/fields/"));
+  let s = saved();
+  await fields.getByLabel("Cost").fill("12.5");
+  await fields.getByLabel("Cost").press("Enter");
+  await s;
+  s = saved();
+  await fields.getByLabel("Bed").selectOption({ label: "South" });
+  await s;
+  await expectAccessible(page, "card with custom fields");
+
+  await c.getByRole("button", { name: "Collapse card" }).click();
+  await expect(c.locator(".field-chip")).toHaveText("Bed: South");
+
+  await page.reload();
+  const c2 = card(page, "Plant bulbs");
+  await expect(c2.locator(".field-chip")).toHaveText("Bed: South");
+  await c2.getByRole("button", { name: "Expand card" }).click();
+  await expect(c2.getByRole("group", { name: "Fields" }).getByLabel("Cost")).toHaveValue("12.5");
+
+  // Deleting a field can be undone.
+  settings = await openSettings(page);
+  await settings.getByRole("button", { name: "Edit the field Cost" }).click();
+  await settings.getByRole("button", { name: "Delete field" }).click();
+  await expect(settings.getByText("Cost · Number")).toHaveCount(0);
+  await settings.getByRole("button", { name: "Close" }).click();
+  const toast = page.getByRole("status", { name: "Notifications" });
+  await toast.getByRole("button", { name: "Undo" }).click();
+  await expect(c2.getByRole("group", { name: "Fields" }).getByLabel("Cost")).toHaveValue("12.5");
+});

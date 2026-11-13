@@ -46,16 +46,18 @@ type Column struct {
 }
 
 type Card struct {
-	ID         string   `json:"id"`
-	BoardID    string   `json:"boardId"`
-	ColumnID   string   `json:"columnId"`
-	Title      string   `json:"title"`
-	Position   string   `json:"position"`
-	LabelIDs   []string `json:"labelIds"`
-	Cover      Cover    `json:"cover"`
-	StartAt    *string  `json:"startAt"` // "YYYY-MM-DD"
-	DueAt      *string  `json:"dueAt"`   // "YYYY-MM-DD", or a UTC timestamp when DueHasTime
-	DueHasTime bool     `json:"dueHasTime"`
+	ID       string   `json:"id"`
+	BoardID  string   `json:"boardId"`
+	ColumnID string   `json:"columnId"`
+	Title    string   `json:"title"`
+	Position string   `json:"position"`
+	LabelIDs []string `json:"labelIds"`
+	// Fields holds the card's custom field values, by field id.
+	Fields     map[string]json.RawMessage `json:"fields"`
+	Cover      Cover                      `json:"cover"`
+	StartAt    *string                    `json:"startAt"` // "YYYY-MM-DD"
+	DueAt      *string                    `json:"dueAt"`   // "YYYY-MM-DD", or a UTC timestamp when DueHasTime
+	DueHasTime bool                       `json:"dueHasTime"`
 	// Checklist progress across all of the card's checklists. Only filled in
 	// on the board detail, for "2/5" on collapsed cards.
 	ChecklistDone  int64 `json:"checklistDone"`
@@ -104,11 +106,12 @@ func parseFocus(raw string) Focus {
 
 // BoardDetail is everything the board page needs, in one response.
 type BoardDetail struct {
-	Board   Board     `json:"board"`
-	Columns []Column  `json:"columns"`
-	Cards   []Card    `json:"cards"`
-	Labels  []Label   `json:"labels"`
-	View    BoardView `json:"view"`
+	Board   Board         `json:"board"`
+	Columns []Column      `json:"columns"`
+	Cards   []Card        `json:"cards"`
+	Labels  []Label       `json:"labels"`
+	Fields  []CustomField `json:"fields"`
+	View    BoardView     `json:"view"`
 }
 
 type Trash struct {
@@ -138,7 +141,7 @@ func columnFromRow(c db.Column) Column {
 func cardFromRow(c db.Card) Card {
 	return Card{
 		ID: c.ID, BoardID: c.BoardID, ColumnID: c.ColumnID, Title: c.Title, Position: c.Position,
-		LabelIDs: []string{}, Cover: Cover{Type: c.CoverType, Value: c.CoverValue}, StartAt: nullStr(c.StartAt), DueAt: nullStr(c.DueAt), DueHasTime: c.DueHasTime != 0,
+		LabelIDs: []string{}, Fields: map[string]json.RawMessage{}, Cover: Cover{Type: c.CoverType, Value: c.CoverValue}, StartAt: nullStr(c.StartAt), DueAt: nullStr(c.DueAt), DueHasTime: c.DueHasTime != 0,
 		CompletedAt: nullStr(c.CompletedAt), ArchivedAt: nullStr(c.ArchivedAt), DeletedAt: nullStr(c.DeletedAt),
 		Version: c.Version, CreatedAt: c.CreatedAt, UpdatedAt: c.UpdatedAt,
 	}
@@ -152,6 +155,13 @@ func withLabels(ctx context.Context, q *db.Queries, c Card) (Card, error) {
 	}
 	if ids != nil {
 		c.LabelIDs = ids
+	}
+	vals, err := q.ListCardFieldValues(ctx, c.ID)
+	if err != nil {
+		return c, err
+	}
+	for _, v := range vals {
+		c.Fields[v.FieldID] = json.RawMessage(v.ValueJson)
 	}
 	return c, nil
 }
@@ -320,9 +330,26 @@ func (s *Boards) Detail(ctx context.Context, userID, boardID string) (BoardDetai
 	for _, id := range described {
 		hasDesc[id] = true
 	}
+	values, err := s.st.ListBoardFieldValues(ctx, boardID)
+	if err != nil {
+		return out, err
+	}
+	fieldsByCard := map[string]map[string]json.RawMessage{}
+	for _, v := range values {
+		if fieldsByCard[v.CardID] == nil {
+			fieldsByCard[v.CardID] = map[string]json.RawMessage{}
+		}
+		fieldsByCard[v.CardID][v.FieldID] = json.RawMessage(v.ValueJson)
+	}
+	if out.Fields, err = listFields(ctx, s.st.Queries, boardID); err != nil {
+		return out, err
+	}
 	out.Cards = make([]Card, 0, len(cards))
 	for _, c := range cards {
 		card := cardFromRow(c)
+		if f := fieldsByCard[c.ID]; f != nil {
+			card.Fields = f
+		}
 		card.HasDescription = hasDesc[c.ID]
 		if ids := labelsByCard[c.ID]; ids != nil {
 			card.LabelIDs = ids
@@ -692,6 +719,12 @@ func (s *Boards) UpdateCard(ctx context.Context, userID, cardID string, p CardPa
 				return err
 			}
 		}
+		if movedBoards {
+			// Nor do custom field values.
+			if err := q.ClearCardFieldValues(ctx, c.ID); err != nil {
+				return err
+			}
+		}
 		if p.LabelIDs != nil {
 			if err := setCardLabels(ctx, q, c.ID, row.BoardID, *p.LabelIDs); err != nil {
 				return err
@@ -1006,5 +1039,9 @@ func PurgeTrash(ctx context.Context, st *store.Store, cutoff time.Time) (int64, 
 		return 0, err
 	}
 	n8, err := st.PurgeTrashedBoards(ctx, c)
-	return n1 + n2 + n3 + n4 + n5 + n6 + n7 + n8, err
+	if err != nil {
+		return 0, err
+	}
+	n9, err := st.PurgeTrashedFields(ctx, c)
+	return n1 + n2 + n3 + n4 + n5 + n6 + n7 + n8 + n9, err
 }

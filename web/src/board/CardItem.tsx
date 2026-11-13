@@ -12,11 +12,12 @@ import { lazy, Suspense, useEffect, useRef, useState, type KeyboardEvent, type M
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
-import type { BoardSettings, Card, Label } from "../api";
+import type { BoardSettings, Card, CustomField, Label } from "../api";
 import { Icon, Menu } from "../ui";
 import { CardMeta, CoverBand, DueText, LabelDots } from "./details";
 import { Attachments } from "./Attachments";
 import { Checklists } from "./Checklists";
+import { CardFields, chipFields, FieldChips } from "./Fields";
 
 // The editor is heavy; load it only when a description is first shown.
 export const LazyDescription = lazy(() => import("./Description"));
@@ -36,10 +37,11 @@ export type CardActions = {
   setCover: (card: Card, cover: Card["cover"]) => void;
   archive: (card: Card) => void;
   trash: (card: Card) => void;
+  setField: (card: Card, field: CustomField, value: string | number | boolean | null) => void;
 };
 
 /** What the board shares with every card: its labels and display settings. */
-export type CardContext = { labels: Label[]; settings: BoardSettings; highlightOverdue: boolean };
+export type CardContext = { labels: Label[]; fields: CustomField[]; settings: BoardSettings; highlightOverdue: boolean };
 
 export function CardItem({
   card,
@@ -164,6 +166,7 @@ export function CardItem({
               <Icon.Check width={14} height={14} /> {card.checklistDone}/{card.checklistTotal}
             </span>
           )}
+          <FieldChips card={card} fields={ctx.fields} />
         </div>
       )}
       {/* While dragged, the placeholder shows just the title: a tall expanded
@@ -201,6 +204,7 @@ export function CardItem({
             </div>
           )}
           <CardMeta card={card} labels={ctx.labels} />
+          <CardFields card={card} fields={ctx.fields} readOnly={readOnly} onSet={(f, v) => actions.setField(card, f, v)} />
           {(card.hasDescription || !readOnly) && (
             <Suspense fallback={<p className="muted description-loading">Loading description…</p>}>
               <LazyDescription card={card} readOnly={readOnly} compact />
@@ -217,7 +221,8 @@ export function CardItem({
 const hasExtras = (card: Card, ctx: CardContext) =>
   (ctx.settings.showLabels && card.labelIds.length > 0) ||
   (ctx.settings.showDueDate && !!card.dueAt) ||
-  (ctx.settings.showChecklist && card.checklistTotal > 0);
+  (ctx.settings.showChecklist && card.checklistTotal > 0) ||
+  chipFields(card, ctx.fields).length > 0;
 
 /** Text fields inside a card shouldn't start a card drag (selecting text would move the card). */
 const fromField = (t: EventTarget) => t instanceof Element && !!t.closest("input, textarea, select, [contenteditable]");
