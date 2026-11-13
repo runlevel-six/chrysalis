@@ -7,12 +7,20 @@ below pick out what each kind of reader needs first; every page is listed once u
 
 ## Reading paths
 
+### Try it
+
+1. [Try Chrysalis on your computer](tutorials/try-chrysalis.md): run it in a minute with Docker and make your first
+   board.
+2. [Keyboard shortcuts](reference/keyboard-shortcuts.md).
+
 ### Run it for your household
 
-1. [Configuration reference](reference/configuration.md): every setting, including the two ways to sign people in.
-2. [Back up and restore](how-to/back-up-and-restore.md): turn on daily backups, copy them somewhere safe, and restore
+1. Choose how people sign in: [with your identity provider (OIDC)](how-to/sign-in-with-oidc.md), or
+   [through a forward-auth proxy](how-to/sign-in-behind-a-proxy.md).
+2. [Configuration reference](reference/configuration.md): every setting.
+3. [Back up and restore](how-to/back-up-and-restore.md): turn on daily backups, copy them somewhere safe, and restore
    one.
-3. [Branding reference](reference/branding.md): add your own themes, icon and name.
+4. [Branding reference](reference/branding.md): add your own themes, icon and name.
 
 ### Move in from Trello
 
@@ -21,12 +29,18 @@ below pick out what each kind of reader needs first; every page is listed once u
 ### Understand how it's built
 
 1. [Design document](DESIGN.md): goals, the UX specification, architecture, data and security decisions.
-2. [How backups work](explanation/backups.md): consistent snapshots, retention, and why the server schedules its own.
+2. [How sync and offline work](explanation/sync-and-offline.md): live changes across devices, and read-only offline.
+3. [How backups work](explanation/backups.md): consistent snapshots, retention, and the CronJob trade-off.
 
 ## All pages
 
 | Page | Kind | What it covers |
 | --- | --- | --- |
+| [Try Chrysalis on your computer](tutorials/try-chrysalis.md) | Tutorial | Run it locally and make a first board |
+| [Sign in with OIDC](how-to/sign-in-with-oidc.md) | How-to | Register a client and configure OIDC sign-in |
+| [Sign in through a forward-auth proxy](how-to/sign-in-behind-a-proxy.md) | How-to | Header mode, safely |
+| [Keyboard shortcuts](reference/keyboard-shortcuts.md) | Reference | Every shortcut, and moving cards from the keyboard |
+| [How sync and offline work](explanation/sync-and-offline.md) | Explanation | Live sync, conflicts, and why offline is read-only |
 | [Design document](DESIGN.md) | Explanation | Why Chrysalis is built the way it is, and what it will and won't do |
 | [Import a board from Trello](how-to/import-from-trello.md) | How-to | Export a board from Trello, import it, and what comes across |
 | [Configuration](reference/configuration.md) | Reference | Every `CHRYSALIS_*` environment variable, and the `chrysalis admin` commands |

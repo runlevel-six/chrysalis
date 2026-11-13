@@ -994,6 +994,7 @@ const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigat
 
 const SHORTCUTS: [string, string][] = [
   ["N", "New card in the column you're in"],
+  ["M", "Pick up the focused card; arrows move it, M drops it"],
   ["Space", "Expand or collapse the focused card"],
   ["Enter", "Open the focused card in full"],
   ["E", "Edit the focused card's title"],
