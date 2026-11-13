@@ -96,6 +96,7 @@ func NewHandler(d Deps) http.Handler {
 	// The deployment's icon is public, like the built-in favicon, so
 	// browsers can fetch it for tabs and home-screen shortcuts.
 	public.HandleFunc("GET /branding/icon", s.brandingIcon)
+	public.HandleFunc("GET /manifest.webmanifest", s.manifest)
 	authn.Register(public)
 	public.Handle("/", authn.Middleware(withOrigin(protected)))
 
@@ -257,5 +258,38 @@ func (s *server) recoverer(next http.Handler) http.Handler {
 			}
 		}()
 		next.ServeHTTP(w, r)
+	})
+}
+
+// manifest makes the app installable (docs/DESIGN.md §3.7), with the
+// deployment's own name and icon when branding sets them.
+func (s *server) manifest(w http.ResponseWriter, r *http.Request) {
+	name := s.branding.DisplayName
+	if name == "" {
+		name = "Chrysalis"
+	}
+	icons := []map[string]string{
+		{"src": "/icon-192.png", "sizes": "192x192", "type": "image/png"},
+		{"src": "/icon-512.png", "sizes": "512x512", "type": "image/png"},
+	}
+	if s.branding.Icon != nil {
+		sizes := "512x512"
+		if s.branding.IconMIME == "image/svg+xml" {
+			sizes = "any"
+		}
+		icons = []map[string]string{{"src": "/branding/icon", "sizes": sizes, "type": s.branding.IconMIME}}
+	}
+	w.Header().Set("Content-Type", "application/manifest+json")
+	w.Header().Set("Cache-Control", "no-cache")
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"name":             name,
+		"short_name":       name,
+		"description":      "A calm board for the things you're working on.",
+		"start_url":        "/",
+		"scope":            "/",
+		"display":          "standalone",
+		"background_color": "#fcf7f3",
+		"theme_color":      "#fcf7f3",
+		"icons":            icons,
 	})
 }

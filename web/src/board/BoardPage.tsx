@@ -25,6 +25,7 @@ import { Dialog, Icon, Menu } from "../ui";
 import { flutterFrom } from "../flutter";
 import { backgroundStyle } from "./backgrounds";
 import { holdSync } from "../live";
+import { useOffline } from "../offline";
 import { DEFAULT_PREFS, isDark } from "../appearance";
 import { ArchivedDialog, BoardSettingsDialog, CardMeta, CoverBand, CoverDialog, DatesDialog, LabelChip, LabelsDialog } from "./details";
 import { Attachments } from "./Attachments";
@@ -84,7 +85,9 @@ export function BoardPage({
 
   const columns = useMemo(() => (d ? [...d.columns].sort(byPosition) : []), [d]);
   const cardsById = useMemo(() => new Map(d?.cards.map((c) => [c.id, c]) ?? []), [d]);
-  const readOnly = d?.board.role === "viewer";
+  // Offline, boards are read-only: the last synced copy (§5.6).
+  const offline = useOffline();
+  const readOnly = d?.board.role === "viewer" || offline;
 
   // Drag state: while dragging, the layout comes from `dragItems` so cards
   // can preview their new column before the drop is committed.

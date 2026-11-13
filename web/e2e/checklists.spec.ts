@@ -63,7 +63,7 @@ test("delete an item and undo it", async ({ page }) => {
   await expect(c.getByRole("checkbox", { name: "Dishes" })).toBeVisible();
   await page.reload();
   await expand(page, "Chores");
-  expect(await itemTexts(card(page, "Chores"))).toEqual(["Dishes", "Laundry"]);
+  await expect.poll(() => itemTexts(card(page, "Chores"))).toEqual(["Dishes", "Laundry"]);
 });
 
 test("reorder items with the keyboard", async ({ page }) => {
@@ -91,7 +91,7 @@ test("reorder items with the keyboard", async ({ page }) => {
   expect(await itemTexts(c)).toEqual(["Third", "First", "Second"]);
   await page.reload();
   await expand(page, "Steps");
-  expect(await itemTexts(card(page, "Steps"))).toEqual(["Third", "First", "Second"]);
+  await expect.poll(() => itemTexts(card(page, "Steps"))).toEqual(["Third", "First", "Second"]);
 });
 
 test("dragging an item reorders it without dragging the card", async ({ page }) => {

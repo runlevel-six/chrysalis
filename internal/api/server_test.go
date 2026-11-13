@@ -135,3 +135,19 @@ func TestCrossSiteMutationsRejected(t *testing.T) {
 		})
 	}
 }
+
+func TestManifest(t *testing.T) {
+	h, _ := newTestServer(t)
+	w := get(h, "/manifest.webmanifest")
+	if w.Code != http.StatusOK || w.Header().Get("Content-Type") != "application/manifest+json" {
+		t.Fatalf("manifest: %d %q", w.Code, w.Header().Get("Content-Type"))
+	}
+	var m struct {
+		Name    string `json:"name"`
+		Display string `json:"display"`
+		Icons   []struct{ Src string }
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &m); err != nil || m.Name != "Chrysalis" || m.Display != "standalone" || len(m.Icons) != 2 {
+		t.Errorf("manifest = %+v (%v)", m, err)
+	}
+}

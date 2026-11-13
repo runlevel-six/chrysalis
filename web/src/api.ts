@@ -4,6 +4,7 @@
 // Typed wrappers around the /api/v1 endpoints.
 
 import { CLIENT_ID } from "./live";
+import { forgetAll, isNetworkError, recall, remember, setOffline } from "./offline";
 import type { Prefs, Theme } from "./appearance";
 
 export type User = {
@@ -184,12 +185,29 @@ export class ApiError extends Error {
 const CLIENT_HEADER = { "X-Chrysalis-Client": CLIENT_ID };
 
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
-  const res = await fetch(`/api/v1${path}`, {
-    method,
-    credentials: "same-origin",
-    headers: body === undefined ? CLIENT_HEADER : { ...CLIENT_HEADER, "Content-Type": "application/json" },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
+  let res: Response;
+  try {
+    res = await fetch(`/api/v1${path}`, {
+      method,
+      credentials: "same-origin",
+      headers: body === undefined ? CLIENT_HEADER : { ...CLIENT_HEADER, "Content-Type": "application/json" },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+  } catch (err) {
+    // No network: reads fall back to the last copy this device saw (§5.6).
+    if (method === "GET" && isNetworkError(err)) {
+      const copy = await recall(path);
+      if (copy !== undefined) {
+        setOffline(true);
+        return copy as T;
+      }
+    }
+    // A failed write isn't "offline mode": the caller keeps the edit (a
+    // draft, or an undo-able toast) and the board stays editable.
+    throw err;
+  }
+  setOffline(false);
+  if (res.status === 401) void forgetAll(); // signed out: don't keep their boards on this device
   if (!res.ok) {
     let message = res.statusText;
     let body: unknown;
@@ -202,7 +220,9 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
     throw new ApiError(res.status, message, body);
   }
   if (res.status === 204) return undefined as T;
-  return (await res.json()) as T;
+  const data = (await res.json()) as T;
+  if (method === "GET") void remember(path, data);
+  return data;
 }
 
 export const api = {

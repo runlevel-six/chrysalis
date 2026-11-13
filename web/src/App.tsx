@@ -14,6 +14,7 @@ import { rememberReturn, SettingsPage, useBrandingThemes } from "./Settings";
 import { applyAppearance, DEFAULT_PREFS, watchSystem } from "./appearance";
 import { Dialog, Icon } from "./ui";
 import { useLiveSync } from "./live";
+import { useOffline } from "./offline";
 
 // Opening the app lands where you left off (§3.3): the first time a tab
 // loads "/", it goes to the last board you had open. Reloads and later
@@ -38,6 +39,7 @@ const markLanded = () => {
 export function App() {
   const path = usePath();
   const me = useQuery({ queryKey: ["me"], queryFn: api.me });
+  const offline = useOffline();
   const boardMatch = path.match(/^\/b\/([^/]+)$/);
   // Changes from other devices and tabs: this board's, and this user's own.
   useLiveSync(boardMatch ? decodeURIComponent(boardMatch[1]) : undefined, !!me.data);
@@ -109,6 +111,11 @@ export function App() {
           </span>
         )}
       </header>
+      {offline && (
+        <p className="offline-banner" role="status">
+          Offline — viewing last synced copy
+        </p>
+      )}
       <main className={boardMatch ? "is-board" : undefined}>{page}</main>
     </>
   );

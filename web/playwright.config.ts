@@ -23,6 +23,9 @@ export default defineConfig({
     baseURL,
     // Traces can capture page content; they're gitignored (docs/DESIGN.md §0.1).
     trace: "retain-on-failure",
+    // Request interception (page.route) can't see through a service worker,
+    // so only the offline tests run with it (they opt back in).
+    serviceWorkers: "block",
   },
   // Every test signs in as the same dev user, and preferences sync live to
   // every open tab (§5.5). Tests that change preferences therefore run on
