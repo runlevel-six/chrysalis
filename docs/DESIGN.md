@@ -276,7 +276,7 @@ Treat this as a first-class feature, not polish.
 - **Delivery:**
   - in-app notification list (always);
   - **Web Push** (some mobile platforms only allow it for web apps installed to the home screen; verify current support);
-  - optional email via SMTP if configured.
+  - optional email via SMTP if configured: **deferred to Phase 3** (maintainer decision, 2026-11-13).
 - **Snooze:** 1 hour, tonight, tomorrow, or pick a time.
 - **Quiet hours:** configurable; no pushes during them.
 - **Wording is gentle:** "Heads up: *Call the clinic* is due tomorrow," never "You missed…"
@@ -433,6 +433,7 @@ A single, quiet line at the top of the board that helps the user get centered. I
 ### Phase 3 — Later / maybe
 
 - Automations ("when a card moves to Done, check all items").
+- **Email reminders** via SMTP (§3.9), moved from Phase 2.
 - ICS calendar feed of due dates. This needs a token-authenticated URL that bypasses SSO, a security tradeoff to design deliberately.
 - Offline **editing** with a sync queue and conflict handling.
 - Recurring cards.
@@ -827,7 +828,7 @@ local/deploy/k8s/  # GITIGNORED: the maintainer's real overlay, based on ../../.
 | `CHRYSALIS_MAX_UPLOAD_MB` | `25` | Upload limit |
 | `CHRYSALIS_TRASH_RETENTION_DAYS` | `30` | Soft-delete purge |
 | `CHRYSALIS_BACKUP_*` | — | Schedule, retention, target |
-| `CHRYSALIS_SMTP_*` | — | Optional email reminders (Phase 2) |
+| `CHRYSALIS_SMTP_*` | — | Optional email reminders (Phase 3) |
 | `CHRYSALIS_VAPID_*` | — | Web Push keys (Phase 2; generate if absent and persist) |
 | `CHRYSALIS_METRICS_ENABLED` | `false` | Prometheus endpoint |
 | `CHRYSALIS_BRANDING_DIR` | — | Optional: extra themes, icons, display name (§3.12) |
