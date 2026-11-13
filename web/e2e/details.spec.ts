@@ -132,3 +132,61 @@ test("no serious accessibility issues in the details dialogs", async ({ page }) 
     await expectAccessible(page, `settings dialog (${scheme})`);
   }
 });
+
+const PHOTO = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAEElEQVR4nGM4UWEDRAwQCgArzgXx0HrtWgAAAABJRU5ErkJggg==",
+  "base64",
+);
+
+test("board background: a gradient, a color, then a photo; each is remembered", async ({ page }) => {
+  await newBoard(page, ["Col"]);
+  const board = page.locator(".board");
+  const settings = await openSettings(page);
+  const saved = () => page.waitForResponse((r) => r.request().method() === "PATCH" && /\/boards\/[^/]+$/.test(r.url()));
+
+  let s = saved();
+  await settings.getByRole("radio", { name: "Meadow gradient" }).click();
+  await s;
+  await expect(board).toHaveClass(/has-background/);
+  await expect(board).toHaveCSS("background-image", /linear-gradient/);
+
+  s = saved();
+  await settings.getByRole("radio", { name: "Sage" }).click();
+  await s;
+  await expect(board).toHaveCSS("background-color", "rgb(232, 240, 216)");
+
+  const uploaded = page.waitForResponse((r) => r.url().endsWith("/background") && r.request().method() === "POST");
+  s = saved();
+  await settings.locator("input[type=file]").setInputFiles({ name: "garden.png", mimeType: "image/png", buffer: PHOTO });
+  await uploaded;
+  await s;
+  await expect(board).toHaveCSS("background-image", /\/api\/v1\/attachments\//);
+  await settings.getByRole("button", { name: "Close" }).click();
+
+  await page.reload();
+  await expect(page.locator(".board")).toHaveCSS("background-image", /\/api\/v1\/attachments\//);
+
+  for (const scheme of ["light", "dark"] as const) {
+    await page.emulateMedia({ colorScheme: scheme });
+    await expectAccessible(page, `photo background (${scheme})`);
+  }
+
+  // Back to the theme's own surface.
+  const settings2 = await openSettings(page);
+  await settings2.getByRole("radio", { name: "Theme default" }).click();
+  await expect(page.locator(".board")).not.toHaveClass(/has-background/);
+});
+
+test("column color as a header stripe or a full tint", async ({ page }) => {
+  await newBoard(page, ["Today"]);
+  await page.getByRole("button", { name: "Today options" }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("radio", { name: "sky" }).click();
+  const col = page.getByRole("region", { name: "Today", exact: true });
+  await expect(col).toHaveClass(/tint-header/);
+  await dialog.getByLabel("A light tint over the column").check();
+  await expect(col).toHaveClass(/tint-full/);
+  await dialog.getByRole("button", { name: "Close" }).click();
+  await page.reload();
+  await expect(page.getByRole("region", { name: "Today", exact: true })).toHaveClass(/tint-full/);
+});

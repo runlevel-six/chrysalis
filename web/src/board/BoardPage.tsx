@@ -20,9 +20,11 @@ import {
 } from "@dnd-kit/core";
 import { arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 
-import { api, ApiError, type BoardDetail, type Card, type Column, type Focus, type Label } from "../api";
+import { api, ApiError, LABEL_COLORS, type BoardDetail, type Card, type Column, type Focus, type Label } from "../api";
 import { Dialog, Icon, Menu } from "../ui";
 import { flutterFrom } from "../flutter";
+import { backgroundStyle } from "./backgrounds";
+import { DEFAULT_PREFS, isDark } from "../appearance";
 import { ArchivedDialog, BoardSettingsDialog, CardMeta, CoverBand, CoverDialog, DatesDialog, LabelChip, LabelsDialog } from "./details";
 import { Attachments } from "./Attachments";
 import { Checklists } from "./Checklists";
@@ -258,6 +260,7 @@ export function BoardPage({
   const fullCard = fullCardId ? cardsById.get(fullCardId) : undefined;
   const moveCard = moveCardId ? cardsById.get(moveCardId) : undefined;
   const optionsColumn = optionsColumnId ? d.columns.find((c) => c.id === optionsColumnId) : undefined;
+  const bgStyle = backgroundStyle(d.board, isDark({ ...DEFAULT_PREFS, ...(me.data?.prefs ?? {}) }));
 
   // What's on screen (§3.4): hide-completed drops done cards and cards in
   // done columns; focus mode shows one column, or only matching cards.
@@ -274,7 +277,7 @@ export function BoardPage({
   const allCardIds = d.cards.map((c) => c.id);
 
   return (
-    <div className="board">
+    <div className={`board${bgStyle ? " has-background" : ""}`} style={bgStyle}>
       <div className="board-head">
         <h1>{d.board.name}</h1>
         <span className="save-state muted" aria-live="polite">
@@ -425,8 +428,10 @@ export function BoardPage({
       {archivedOpen && <ArchivedDialog boardId={id} onClose={() => setArchivedOpen(false)} />}
       {settingsOpen && (
         <BoardSettingsDialog
+          boardId={id}
           name={d.board.name}
           settings={d.board.settings}
+          background={d.board.background}
           labels={ctx.labels}
           actions={actions}
           onClose={() => setSettingsOpen(false)}
@@ -646,7 +651,10 @@ function ColumnOptions({
   onClose: () => void;
 }) {
   const [confirming, setConfirming] = useState(false);
-  const [isDone, setIsDone] = useState(column.isDone); // responds instantly; see BoardSettingsDialog
+  // Local copies so controls respond on the click itself; see BoardSettingsDialog.
+  const [isDone, setIsDone] = useState(column.isDone);
+  const [color, setColor] = useState(column.color);
+  const [colorMode, setColorMode] = useState(column.colorMode);
   const i = columns.findIndex((c) => c.id === column.id);
   const move = (dir: -1 | 1) => {
     // New position between the neighbors on the side we're moving to.
@@ -699,6 +707,61 @@ function ColumnOptions({
         <button type="button" className="text-button" disabled={i >= columns.length - 1} onClick={() => move(1)}>
           Move right
         </button>
+        <fieldset className="settings-group">
+          <legend>Color</legend>
+          <div className="swatches" role="radiogroup" aria-label="Column color">
+            <button
+              type="button"
+              role="radio"
+              aria-checked={!color}
+              className={`swatch is-none${!color ? " is-selected" : ""}`}
+              aria-label="No color"
+              title="No color"
+              onClick={() => {
+                setColor("");
+                void actions.updateColumn(column, { color: "" }, `Removed the color from “${column.name}”`);
+              }}
+            />
+            {LABEL_COLORS.map((c) => (
+              <button
+                key={c}
+                type="button"
+                role="radio"
+                aria-checked={color === c}
+                aria-label={c}
+                title={c}
+                className={`swatch label-${c}${color === c ? " is-selected" : ""}`}
+                onClick={() => {
+                  setColor(c);
+                  void actions.updateColumn(column, { color: c }, `Changed the color of “${column.name}”`);
+                }}
+              />
+            ))}
+          </div>
+          {color && (
+            <div className="row">
+              {(
+                [
+                  ["header", "A stripe across the top"],
+                  ["full", "A light tint over the column"],
+                ] as const
+              ).map(([mode, text]) => (
+                <label key={mode} className="check">
+                  <input
+                    type="radio"
+                    name={`color-mode-${column.id}`}
+                    checked={colorMode === mode}
+                    onChange={() => {
+                      setColorMode(mode);
+                      void actions.updateColumn(column, { colorMode: mode }, `Changed how “${column.name}” shows its color`);
+                    }}
+                  />
+                  {text}
+                </label>
+              ))}
+            </div>
+          )}
+        </fieldset>
         <label className="check">
           <input
             type="checkbox"

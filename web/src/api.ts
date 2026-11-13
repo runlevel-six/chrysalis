@@ -206,7 +206,19 @@ export const api = {
   trashCard: (id: string) => request<Card>("DELETE", `/cards/${encodeURIComponent(id)}`),
   restoreCard: (id: string) => request<Card>("POST", `/cards/${encodeURIComponent(id)}/restore`),
 
-  updateBoard: (id: string, patch: { name?: string; settings?: BoardSettings }) =>
+  uploadBackground: async (boardId: string, file: File): Promise<Attachment> => {
+    const form = new FormData();
+    form.append("file", file, file.name);
+    const res = await fetch(`/api/v1/boards/${encodeURIComponent(boardId)}/background`, {
+      method: "POST",
+      credentials: "same-origin",
+      body: form,
+    });
+    const body = await res.json().catch(() => undefined);
+    if (!res.ok) throw new ApiError(res.status, (body as { error?: string })?.error ?? res.statusText, body);
+    return body as Attachment;
+  },
+  updateBoard: (id: string, patch: { name?: string; settings?: BoardSettings; background?: Board["background"] }) =>
     request<Board>("PATCH", `/boards/${encodeURIComponent(id)}`, patch),
   archivedCards: (boardId: string) =>
     request<{ cards: Card[] }>("GET", `/boards/${encodeURIComponent(boardId)}/archived`).then((r) => r.cards),

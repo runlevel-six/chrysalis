@@ -13,6 +13,7 @@ import { generateKeyBetween } from "fractional-indexing";
 import {
   api,
   ApiError,
+  type Board,
   type BoardDetail,
   type BoardSettings,
   type Card,
@@ -273,10 +274,10 @@ export function useBoardActions(boardId: string) {
 
   // Board
 
-  const updateBoard = async (p: { name?: string; settings?: BoardSettings }, label?: string) => {
+  const updateBoard = async (p: { name?: string; settings?: BoardSettings; background?: Board["background"] }, label?: string) => {
     const d = get();
     if (!d) return;
-    const before = { name: d.board.name, settings: d.board.settings };
+    const before = { name: d.board.name, settings: d.board.settings, background: d.board.background };
     const updated = await send(
       () =>
         patch((x) => ({

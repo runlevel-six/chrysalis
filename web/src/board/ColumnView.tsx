@@ -8,6 +8,7 @@ import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable"
 import type { Card, Column } from "../api";
 import { Icon } from "../ui";
 import { CardItem, TitleEditor, type CardActions, type CardContext } from "./CardItem";
+import { columnTint } from "./backgrounds";
 
 export function ColumnView({
   column,
@@ -42,7 +43,7 @@ export function ColumnView({
   const [renaming, setRenaming] = useState(false);
   const count = cards.length;
   const overLimit = column.softLimit !== null && count > column.softLimit;
-  const tint = column.color ? { "--column-tint": column.color } : undefined;
+  const tint = column.color ? { "--column-tint": columnTint(column.color) } : undefined;
 
   if (collapsed) {
     // A narrow strip with the name and count (§3.4).

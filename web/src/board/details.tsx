@@ -3,10 +3,11 @@
 
 // Card details: labels, dates, archived cards and board settings.
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { api, attachmentUrl, LABEL_COLORS, type BoardSettings, type Card, type Label, type LabelColor } from "../api";
+import { api, ApiError, attachmentUrl, LABEL_COLORS, type Board, type BoardSettings, type Card, type Label, type LabelColor } from "../api";
+import { BACKGROUND_COLORS, GRADIENTS } from "./backgrounds";
 import { attachmentsKey } from "./Attachments";
 import { Dialog, Icon } from "../ui";
 import { useUndo } from "../undo";
@@ -271,14 +272,18 @@ export function ArchivedDialog({ boardId, onClose }: { boardId: string; onClose:
 
 /** Board name, what collapsed cards show, and the board's labels. */
 export function BoardSettingsDialog({
+  boardId,
   name,
   settings,
+  background,
   labels,
   actions,
   onClose,
 }: {
+  boardId: string;
   name: string;
   settings: BoardSettings;
+  background: Board["background"];
   labels: Label[];
   actions: Actions;
   onClose: () => void;
@@ -358,6 +363,8 @@ export function BoardSettingsDialog({
         <legend>Collapsed columns</legend>
         {toggle("hideColumnCount", "Show the number of cards", true)}
       </fieldset>
+
+      <BackgroundPicker boardId={boardId} background={background} actions={actions} />
 
       <fieldset className="settings-group">
         <legend>Labels</legend>
@@ -463,5 +470,85 @@ export function CoverDialog({ card, actions, onClose }: { card: Card; actions: A
         </div>
       )}
     </Dialog>
+  );
+}
+
+/** Board background: theme default, a color, a gradient preset, or a photo (§3.5). */
+function BackgroundPicker({ boardId, background, actions }: { boardId: string; background: Board["background"]; actions: Actions }) {
+  const { notify } = useUndo();
+  const file = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const set = (bg: Board["background"]) => void actions.updateBoard({ background: bg }, "Changed the background");
+  const is = (type: string, value: string) => background.type === type && background.value === value;
+
+  const upload = async (f: File | undefined) => {
+    if (!f) return;
+    setUploading(true);
+    try {
+      const a = await api.uploadBackground(boardId, f);
+      set({ type: "image", value: a.id });
+    } catch (err) {
+      notify(err instanceof ApiError ? err.message : "That photo didn't upload. Check your connection and try again.");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <fieldset className="settings-group">
+      <legend>Background</legend>
+      <div className="bg-choices" role="radiogroup" aria-label="Background">
+        <button
+          type="button"
+          role="radio"
+          aria-checked={!background.value}
+          className="bg-choice is-default"
+          onClick={() => set({ type: "color", value: "" })}
+        >
+          Theme default
+        </button>
+        {BACKGROUND_COLORS.map((c) => (
+          <button
+            key={c.value}
+            type="button"
+            role="radio"
+            aria-checked={is("color", c.value)}
+            aria-label={c.name}
+            title={c.name}
+            className="bg-choice"
+            style={{ background: c.value }}
+            onClick={() => set({ type: "color", value: c.value })}
+          />
+        ))}
+        {GRADIENTS.map((g) => (
+          <button
+            key={g.id}
+            type="button"
+            role="radio"
+            aria-checked={is("gradient", g.id)}
+            aria-label={`${g.name} gradient`}
+            title={g.name}
+            className="bg-choice"
+            style={{ background: g.css }}
+            onClick={() => set({ type: "gradient", value: g.id })}
+          />
+        ))}
+      </div>
+      <div className="row bg-more">
+        <label className="check">
+          <span>Any color</span>
+          <input
+            type="color"
+            aria-label="Pick any background color"
+            value={background.type === "color" && background.value ? background.value : "#f6efe0"}
+            onChange={(e) => set({ type: "color", value: e.target.value })}
+          />
+        </label>
+        <input ref={file} type="file" accept="image/*" hidden onChange={(e) => void upload(e.target.files?.[0])} />
+        <button type="button" className="text-button" disabled={uploading} onClick={() => file.current?.click()}>
+          <Icon.Image /> {uploading ? "Uploading…" : background.type === "image" ? "Use a different photo" : "Use a photo"}
+        </button>
+      </div>
+    </fieldset>
   );
 }
