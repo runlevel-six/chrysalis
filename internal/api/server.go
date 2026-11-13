@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/runlevel-six/chrysalis/internal/auth"
+	"github.com/runlevel-six/chrysalis/internal/branding"
 	"github.com/runlevel-six/chrysalis/internal/config"
 	"github.com/runlevel-six/chrysalis/internal/service"
 	"github.com/runlevel-six/chrysalis/internal/storage"
@@ -29,6 +30,8 @@ type server struct {
 	store       *store.Store
 	boards      *service.Boards
 	attachments *service.Attachments
+	prefs       *service.PrefsService
+	branding    branding.Branding
 	log         *slog.Logger
 }
 
@@ -40,10 +43,24 @@ type server struct {
 // therefore authenticated by default.
 //
 // static is the built web app (index.html and assets/).
-// files holds attachment content.
-func NewHandler(cfg *config.Config, st *store.Store, files storage.Store, authn auth.Authenticator, static fs.FS, log *slog.Logger) http.Handler {
+// Deps is everything the HTTP layer needs.
+type Deps struct {
+	Config   *config.Config
+	Store    *store.Store
+	Files    storage.Store // attachment content
+	Auth     auth.Authenticator
+	Static   fs.FS // the built web app
+	Branding branding.Branding
+	Log      *slog.Logger
+}
+
+func NewHandler(d Deps) http.Handler {
+	cfg, st, authn, static, log := d.Config, d.Store, d.Auth, d.Static, d.Log
 	boards := service.NewBoards(st, time.Now)
-	s := &server{cfg: cfg, store: st, boards: boards, attachments: service.NewAttachments(boards, files), log: log}
+	s := &server{
+		cfg: cfg, store: st, boards: boards, attachments: service.NewAttachments(boards, d.Files),
+		prefs: service.NewPrefs(st, boards, d.Branding.Has), branding: d.Branding, log: log,
+	}
 
 	protected := http.NewServeMux()
 	protected.HandleFunc("GET /api/v1/me", s.me)
@@ -52,6 +69,9 @@ func NewHandler(cfg *config.Config, st *store.Store, files storage.Store, authn 
 	protected.HandleFunc("GET /api/v1/boards/{id}", s.getBoard)
 	s.registerContent(protected)
 	s.registerAttachments(protected)
+	protected.HandleFunc("GET /api/v1/me/prefs", s.getPrefs)
+	protected.HandleFunc("PATCH /api/v1/me/prefs", s.updatePrefs)
+	protected.HandleFunc("GET /api/v1/branding", s.getBranding)
 	protected.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
 		auth.WriteError(w, http.StatusNotFound, "not found")
 	})
@@ -61,6 +81,9 @@ func NewHandler(cfg *config.Config, st *store.Store, files storage.Store, authn 
 	public.HandleFunc("GET /healthz", s.healthz)
 	public.HandleFunc("GET /readyz", s.readyz)
 	public.Handle("GET /assets/", assetsHandler(static))
+	// The deployment's icon is public, like the built-in favicon, so
+	// browsers can fetch it for tabs and home-screen shortcuts.
+	public.HandleFunc("GET /branding/icon", s.brandingIcon)
 	authn.Register(public)
 	public.Handle("/", authn.Middleware(protected))
 
@@ -103,11 +126,64 @@ func (s *server) me(w http.ResponseWriter, r *http.Request) {
 		s.serviceError(w, r, err)
 		return
 	}
+	prefs, err := s.prefs.Get(r.Context(), u.ID)
+	if err != nil {
+		s.serviceError(w, r, err)
+		return
+	}
 	writeJSON(w, http.StatusOK, struct {
 		auth.User
-		LastBoardID string `json:"lastBoardId,omitempty"`
-		Version     string `json:"version"`
-	}{u, last, s.cfg.Version})
+		LastBoardID string        `json:"lastBoardId,omitempty"`
+		Version     string        `json:"version"`
+		Prefs       service.Prefs `json:"prefs"`
+		// Shown instead of "Chrysalis" when the deployment's branding sets one.
+		DisplayName string `json:"appName,omitempty"`
+	}{u, last, s.cfg.Version, prefs, s.branding.DisplayName})
+}
+
+func (s *server) getPrefs(w http.ResponseWriter, r *http.Request) {
+	p, err := s.prefs.Get(r.Context(), userID(r))
+	if err != nil {
+		s.serviceError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, p)
+}
+
+func (s *server) updatePrefs(w http.ResponseWriter, r *http.Request) {
+	var patch service.PrefsPatch
+	if !decodeJSON(w, r, &patch) {
+		return
+	}
+	p, err := s.prefs.Update(r.Context(), userID(r), patch)
+	if err != nil {
+		s.serviceError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, p)
+}
+
+// getBranding lists the deployment's extra themes (the built-ins ship in
+// the web app itself) and its display name.
+func (s *server) getBranding(w http.ResponseWriter, r *http.Request) {
+	themes := s.branding.Themes
+	if themes == nil {
+		themes = []branding.Theme{}
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"displayName": s.branding.DisplayName, "themes": themes, "hasIcon": s.branding.Icon != nil})
+}
+
+func (s *server) brandingIcon(w http.ResponseWriter, r *http.Request) {
+	if s.branding.Icon == nil {
+		http.NotFound(w, r)
+		return
+	}
+	w.Header().Set("Content-Type", s.branding.IconMIME)
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	// An SVG icon gets no chance to run script if opened directly.
+	w.Header().Set("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; sandbox")
+	w.Header().Set("Cache-Control", "public, max-age=3600")
+	_, _ = w.Write(s.branding.Icon)
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {

@@ -73,7 +73,7 @@ func (m *multiUser) open(static fs.FS) {
 		m.t.Fatal(err)
 	}
 	m.files = files
-	m.h = NewHandler(cfg, st, files, authn, static, log)
+	m.h = NewHandler(Deps{Config: cfg, Store: st, Files: files, Auth: authn, Static: static, Log: log})
 }
 
 // as sends a request as user ("" = no identity header).

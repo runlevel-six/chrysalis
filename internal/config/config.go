@@ -37,6 +37,8 @@ type Config struct {
 	MaxUploadBytes int64
 	// StorageBackend is where attachments live: "local" (under DataDir).
 	StorageBackend string
+	// BrandingDir optionally holds extra themes, an icon and a display name.
+	BrandingDir string
 	// Version is the build's version (set by main from -ldflags, not the
 	// environment), shown in the app so it's easy to confirm what's deployed.
 	Version string
@@ -128,6 +130,8 @@ func Load(getenv func(string) string) (*Config, error) {
 		errs = append(errs, errors.New("CHRYSALIS_MAX_UPLOAD_MB must be a whole number from 1 to 1024"))
 	}
 	c.MaxUploadBytes = int64(mb) << 20
+
+	c.BrandingDir = env("BRANDING_DIR", "")
 
 	c.StorageBackend = env("STORAGE_BACKEND", "local")
 	switch c.StorageBackend {

@@ -46,7 +46,7 @@ func newTestServer(t *testing.T) (http.Handler, *store.Store) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return NewHandler(cfg, st, files, authn, testStatic, log), st
+	return NewHandler(Deps{Config: cfg, Store: st, Files: files, Auth: authn, Static: testStatic, Log: log}), st
 }
 
 var testStatic = fstest.MapFS{

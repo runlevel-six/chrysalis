@@ -17,6 +17,7 @@ import (
 
 	"github.com/runlevel-six/chrysalis/internal/api"
 	"github.com/runlevel-six/chrysalis/internal/auth"
+	"github.com/runlevel-six/chrysalis/internal/branding"
 	"github.com/runlevel-six/chrysalis/internal/config"
 	"github.com/runlevel-six/chrysalis/internal/service"
 	"github.com/runlevel-six/chrysalis/internal/storage"
@@ -64,13 +65,20 @@ func run() error {
 		return err
 	}
 
+	brand, err := branding.Load(cfg.BrandingDir, log)
+	if err != nil {
+		return err
+	}
+
 	authn := newAuthenticator(cfg, st, log)
 	go purgeExpiredSessions(ctx, st, log)
 	go purgeTrash(ctx, st, files, cfg.TrashRetention, log)
 
 	srv := &http.Server{
-		Addr:              cfg.ListenAddr,
-		Handler:           api.NewHandler(cfg, st, files, authn, web.Dist(), log),
+		Addr: cfg.ListenAddr,
+		Handler: api.NewHandler(api.Deps{
+			Config: cfg, Store: st, Files: files, Auth: authn, Static: web.Dist(), Branding: brand, Log: log,
+		}),
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 	errc := make(chan error, 1)

@@ -169,3 +169,14 @@ type UserColumnView struct {
 	Collapsed int64
 	UpdatedAt string
 }
+
+type UserPref struct {
+	UserID            string
+	Theme             string
+	Mode              string
+	Density           string
+	Motion            string
+	CompletionFlutter int64
+	HighlightOverdue  int64
+	UpdatedAt         string
+}
