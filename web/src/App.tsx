@@ -10,9 +10,38 @@ import emptyStateSvg from "./art/empty-state.svg?raw";
 import { Link, navigate, usePath } from "./router";
 import { BoardPage } from "./board/BoardPage";
 
+// Opening the app lands where you left off (§3.3): the first time a tab
+// loads "/", it goes to the last board you had open. Reloads and later
+// visits to "/" (the board list link) stay put; sessionStorage is per tab and
+// survives reloads, so it marks "this tab already landed".
+const LANDED = "chrysalis.landed";
+const alreadyLanded = () => {
+  try {
+    return sessionStorage.getItem(LANDED) === "1";
+  } catch {
+    return true; // storage blocked: never redirect unexpectedly
+  }
+};
+const markLanded = () => {
+  try {
+    sessionStorage.setItem(LANDED, "1");
+  } catch {
+    // fine: worst case we don't redirect
+  }
+};
+
 export function App() {
   const path = usePath();
   const me = useQuery({ queryKey: ["me"], queryFn: api.me });
+
+  useEffect(() => {
+    if (!me.data) return;
+    if (!alreadyLanded() && window.location.pathname === "/" && me.data.lastBoardId) {
+      window.history.replaceState(null, "", `/b/${me.data.lastBoardId}`);
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    }
+    markLanded();
+  }, [me.data]);
 
   if (me.error instanceof ApiError && me.error.status === 401) {
     return <SignedOut />;

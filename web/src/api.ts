@@ -3,7 +3,7 @@
 
 // Typed wrappers around the /api/v1 endpoints.
 
-export type User = { id: string; email: string; displayName: string };
+export type User = { id: string; email: string; displayName: string; lastBoardId?: string };
 
 export type Board = {
   id: string;
@@ -70,6 +70,22 @@ export type BoardView = {
   defaultCardState: "collapsed" | "expanded";
   cards: Record<string, boolean>; // card id -> expanded
   columns: Record<string, boolean>; // column id -> collapsed
+  focus: Focus;
+  hideCompleted: boolean;
+};
+
+/** Focus mode (§3.4): one column, or only the cards matching a filter. */
+export type Focus =
+  | { type: "none" }
+  | { type: "column"; columnId: string }
+  | { type: "filter"; query?: string; labelIds?: string[] };
+
+export type ViewChange = {
+  cards?: Record<string, boolean>;
+  columns?: Record<string, boolean>;
+  focus?: Focus;
+  hideCompleted?: boolean;
+  opened?: boolean;
 };
 
 export type ChecklistItem = { id: string; checklistId: string; text: string; doneAt: string | null; position: string; version: number };
@@ -159,7 +175,7 @@ export const api = {
 
   boardDetail: (id: string) => request<BoardDetail>("GET", `/boards/${encodeURIComponent(id)}/detail`),
   boardTrash: (id: string) => request<Trash>("GET", `/boards/${encodeURIComponent(id)}/trash`),
-  setView: (boardId: string, view: { cards?: Record<string, boolean>; columns?: Record<string, boolean> }) =>
+  setView: (boardId: string, view: ViewChange) =>
     request<void>("PUT", `/boards/${encodeURIComponent(boardId)}/view`, view),
 
   createColumn: (boardId: string, name: string, position?: string) =>

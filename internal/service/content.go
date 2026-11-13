@@ -75,6 +75,27 @@ type BoardView struct {
 	DefaultCardState string          `json:"defaultCardState"` // "collapsed" | "expanded"
 	Cards            map[string]bool `json:"cards"`            // card id -> expanded
 	Columns          map[string]bool `json:"columns"`          // column id -> collapsed
+	Focus            Focus           `json:"focus"`
+	HideCompleted    bool            `json:"hideCompleted"`
+}
+
+// Focus mode (docs/DESIGN.md §3.4): one column, or only the cards matching a
+// filter, with everything else out of sight.
+type Focus struct {
+	Type     string   `json:"type"`               // none | column | filter
+	ColumnID string   `json:"columnId,omitempty"` // type column
+	Query    string   `json:"query,omitempty"`    // type filter: text in the title
+	LabelIDs []string `json:"labelIds,omitempty"` // type filter: any of these labels
+}
+
+const maxFilterQuery = 200
+
+func parseFocus(raw string) Focus {
+	var f Focus
+	if json.Unmarshal([]byte(raw), &f) != nil || (f.Type != "column" && f.Type != "filter") {
+		return Focus{Type: "none"}
+	}
+	return f
 }
 
 // BoardDetail is everything the board page needs, in one response.
@@ -316,7 +337,13 @@ func (s *Boards) Detail(ctx context.Context, userID, boardID string) (BoardDetai
 		out.Labels = append(out.Labels, labelFromRow(l))
 	}
 
-	out.View = BoardView{DefaultCardState: b.Settings.DefaultCardState, Cards: map[string]bool{}, Columns: map[string]bool{}}
+	out.View = BoardView{DefaultCardState: b.Settings.DefaultCardState, Cards: map[string]bool{}, Columns: map[string]bool{}, Focus: Focus{Type: "none"}}
+	if bv, err := s.st.GetBoardView(ctx, db.GetBoardViewParams{UserID: userID, BoardID: boardID}); err == nil {
+		out.View.Focus = parseFocus(bv.FocusJson)
+		out.View.HideCompleted = bv.HideCompleted != 0
+	} else if !errors.Is(err, sql.ErrNoRows) {
+		return out, err
+	}
 	cv, err := s.st.ListCardViews(ctx, db.ListCardViewsParams{UserID: userID, BoardID: boardID})
 	if err != nil {
 		return out, err
@@ -767,10 +794,22 @@ func (s *Boards) Trash(ctx context.Context, userID, boardID string) (Trash, erro
 	return out, nil
 }
 
-// SetView saves the user's expanded/collapsed state for cards and columns on
-// one board. Viewers may do this too: view state isn't content. IDs that
-// aren't on this board are ignored.
-func (s *Boards) SetView(ctx context.Context, userID, boardID string, cards, columns map[string]bool) error {
+// ViewChange is one batch of view-state changes. Nil fields are left alone.
+type ViewChange struct {
+	Cards         map[string]bool `json:"cards"`
+	Columns       map[string]bool `json:"columns"`
+	Focus         *Focus          `json:"focus"`
+	HideCompleted *bool           `json:"hideCompleted"`
+	// Opened records that the user opened the board, so the app can bring
+	// them back to it next time (§3.3).
+	Opened bool `json:"opened"`
+}
+
+// SetView saves the user's own view of one board: expanded cards, collapsed
+// columns, focus, hide-completed. Viewers may do this too: view state isn't
+// content. Card and column IDs that aren't on this board are ignored.
+func (s *Boards) SetView(ctx context.Context, userID, boardID string, v ViewChange) error {
+	cards, columns := v.Cards, v.Columns
 	if len(cards)+len(columns) > maxViewBatch {
 		return &ValidationError{"too many view changes in one request"}
 	}
@@ -809,8 +848,77 @@ func (s *Boards) SetView(ctx context.Context, userID, boardID string, cards, col
 				return err
 			}
 		}
+		if v.Focus != nil || v.HideCompleted != nil {
+			cur := db.UserBoardView{FocusJson: "{}"}
+			if bv, err := q.GetBoardView(ctx, db.GetBoardViewParams{UserID: userID, BoardID: boardID}); err == nil {
+				cur = bv
+			} else if !errors.Is(err, sql.ErrNoRows) {
+				return err
+			}
+			if v.Focus != nil {
+				f, err := cleanFocus(ctx, q, boardID, *v.Focus)
+				if err != nil {
+					return err
+				}
+				raw, _ := json.Marshal(f)
+				cur.FocusJson = string(raw)
+			}
+			if v.HideCompleted != nil {
+				cur.HideCompleted = b2i(*v.HideCompleted)
+			}
+			if err := q.UpsertBoardView(ctx, db.UpsertBoardViewParams{
+				UserID: userID, BoardID: boardID, FocusJson: cur.FocusJson, HideCompleted: cur.HideCompleted, UpdatedAt: now,
+			}); err != nil {
+				return err
+			}
+		}
+		if v.Opened {
+			if err := q.TouchBoardOpened(ctx, db.TouchBoardOpenedParams{
+				UserID: userID, BoardID: boardID, LastOpenedAt: sql.NullString{String: now, Valid: true}, UpdatedAt: now,
+			}); err != nil {
+				return err
+			}
+		}
 		return nil
 	})
+}
+
+func cleanFocus(ctx context.Context, q *db.Queries, boardID string, f Focus) (Focus, error) {
+	switch f.Type {
+	case "none":
+		return Focus{Type: "none"}, nil
+	case "column":
+		c, err := q.GetColumn(ctx, f.ColumnID)
+		if errors.Is(err, sql.ErrNoRows) || (err == nil && (c.BoardID != boardID || c.DeletedAt.Valid)) {
+			return f, &ValidationError{"That column isn't on this board."}
+		}
+		return Focus{Type: "column", ColumnID: f.ColumnID}, err
+	case "filter":
+		f.Query = strings.TrimSpace(f.Query)
+		if utf8.RuneCountInString(f.Query) > maxFilterQuery {
+			return f, &ValidationError{"That filter is too long."}
+		}
+		for _, id := range f.LabelIDs {
+			l, err := q.GetLabel(ctx, id)
+			if errors.Is(err, sql.ErrNoRows) || (err == nil && l.BoardID != boardID) {
+				return f, &ValidationError{"That label isn't on this board."}
+			}
+			if err != nil {
+				return f, err
+			}
+		}
+		return Focus{Type: "filter", Query: f.Query, LabelIDs: f.LabelIDs}, nil
+	}
+	return f, &ValidationError{"focus type must be none, column or filter"}
+}
+
+// LastOpenedBoard returns the board the user opened most recently, or "".
+func (s *Boards) LastOpenedBoard(ctx context.Context, userID string) (string, error) {
+	id, err := s.st.LastOpenedBoard(ctx, userID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", nil
+	}
+	return id, err
 }
 
 // PurgeTrash permanently deletes cards and columns trashed before cutoff.

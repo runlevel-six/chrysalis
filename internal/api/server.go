@@ -94,9 +94,19 @@ func (s *server) readyz(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintln(w, "ready")
 }
 
+// me returns the signed-in user, plus the board they last had open so the
+// app can bring them straight back to it (§3.3).
 func (s *server) me(w http.ResponseWriter, r *http.Request) {
 	u, _ := auth.UserFrom(r.Context())
-	writeJSON(w, http.StatusOK, u)
+	last, err := s.boards.LastOpenedBoard(r.Context(), u.ID)
+	if err != nil {
+		s.serviceError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, struct {
+		auth.User
+		LastBoardID string `json:"lastBoardId,omitempty"`
+	}{u, last})
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {

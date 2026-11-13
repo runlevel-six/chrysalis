@@ -147,6 +147,15 @@ type User struct {
 	LastSeenAt  string
 }
 
+type UserBoardView struct {
+	UserID        string
+	BoardID       string
+	FocusJson     string
+	HideCompleted int64
+	LastOpenedAt  sql.NullString
+	UpdatedAt     string
+}
+
 type UserCardView struct {
 	UserID    string
 	CardID    string

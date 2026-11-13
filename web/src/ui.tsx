@@ -92,6 +92,12 @@ export const Icon = {
   Italic: svg(<path d="M19 4h-9M14 20H5M15 4 9 20" />),
   BulletList: svg(<path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01" />),
   NumberedList: svg(<path d="M10 6h10M10 12h10M10 18h10M4 6h1v4M4 10h2M6 18H4c0-1 2-2 2-3s-1-1.5-2-1" />),
+  Eye: svg(
+    <>
+      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" />
+      <circle cx="12" cy="12" r="3" />
+    </>,
+  ),
   Image: svg(
     <>
       <rect x="3" y="4" width="18" height="16" rx="2" />

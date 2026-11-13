@@ -4,6 +4,8 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 
+import { gotoBoards } from "./helpers";
+
 // Every test signs in as the same dev user and runs in parallel, so each one
 // uses board names no other test will.
 function uniqueName(label: string) {
@@ -19,7 +21,7 @@ async function createBoard(page: Page, name: string) {
 }
 
 test("create boards with quick capture; they survive a reload", async ({ page }) => {
-  await page.goto("/");
+  await gotoBoards(page);
   const first = uniqueName("Garden plans");
   const second = uniqueName("Reading list");
 
@@ -39,7 +41,7 @@ test("create boards with quick capture; they survive a reload", async ({ page })
 });
 
 test("open a board; it survives a reload", async ({ page }) => {
-  await page.goto("/");
+  await gotoBoards(page);
   const name = uniqueName("Kitchen");
   await createBoard(page, name);
 
@@ -64,13 +66,13 @@ test("an unknown board shows a calm not-found page", async ({ page }) => {
 });
 
 test("rejects a blank board name without a request", async ({ page }) => {
-  await page.goto("/");
+  await gotoBoards(page);
   await page.getByLabel("New board").fill("   ");
   await expect(page.getByRole("button", { name: "Create" })).toBeDisabled();
 });
 
 test("no horizontal scrolling", async ({ page }) => {
-  await page.goto("/");
+  await gotoBoards(page);
   await createBoard(page, uniqueName("A board with quite a long name that should wrap politely"));
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
   expect(overflow).toBe(false);
@@ -80,7 +82,7 @@ test("no horizontal scrolling", async ({ page }) => {
 for (const scheme of ["light", "dark"] as const) {
   test(`no serious accessibility issues (${scheme})`, async ({ page }) => {
     await page.emulateMedia({ colorScheme: scheme });
-    await page.goto("/");
+    await gotoBoards(page);
     const name = uniqueName("Accessible");
     await createBoard(page, name);
 

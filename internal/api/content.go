@@ -215,14 +215,11 @@ func (s *server) boardTrash(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) setBoardView(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		Cards   map[string]bool `json:"cards"`
-		Columns map[string]bool `json:"columns"`
-	}
+	var req service.ViewChange
 	if !decodeJSON(w, r, &req) {
 		return
 	}
-	if err := s.boards.SetView(r.Context(), userID(r), r.PathValue("id"), req.Cards, req.Columns); err != nil {
+	if err := s.boards.SetView(r.Context(), userID(r), r.PathValue("id"), req); err != nil {
 		s.serviceError(w, r, err)
 		return
 	}

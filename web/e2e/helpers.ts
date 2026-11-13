@@ -9,8 +9,19 @@ import { expect, type Locator, type Page } from "@playwright/test";
 export const unique = (label: string) => `${label} ${crypto.randomUUID().slice(0, 8)}`;
 
 /** Create a board with the given columns and open it. Returns its URL. */
-export async function newBoard(page: Page, columns: string[]) {
+/**
+ * Go to the board list. A fresh load of "/" may land on the last board you
+ * had open (§3.3); the home link always goes to the list.
+ */
+export async function gotoBoards(page: Page) {
   await page.goto("/");
+  await page.waitForLoadState("networkidle");
+  if (new URL(page.url()).pathname !== "/") await page.getByRole("link", { name: "Chrysalis" }).click();
+  await expect(page.getByRole("heading", { name: "Your boards" })).toBeVisible();
+}
+
+export async function newBoard(page: Page, columns: string[]) {
+  await gotoBoards(page);
   const name = unique("Board");
   await page.getByLabel("New board").fill(name);
   await page.getByLabel("New board").press("Enter");

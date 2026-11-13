@@ -19,6 +19,7 @@ import {
   type CardPatch,
   type Column,
   type ColumnPatch,
+  type Focus,
   type Label,
   type LabelColor,
 } from "../api";
@@ -311,14 +312,19 @@ export function useBoardActions(boardId: string) {
  */
 export function useViewState(boardId: string, detail: BoardDetail | undefined) {
   const qc = useQueryClient();
-  const pending = useRef<{ cards: Record<string, boolean>; columns: Record<string, boolean> }>({ cards: {}, columns: {} });
+  // Card and column toggles batch up; focus and hide-completed ride along in
+  // the same request (the latest value wins).
+  const pending = useRef<{ cards: Record<string, boolean>; columns: Record<string, boolean>; focus?: Focus; hideCompleted?: boolean }>({
+    cards: {},
+    columns: {},
+  });
   const timer = useRef<number | undefined>(undefined);
 
   const flush = useCallback(
     (keepalive = false) => {
       window.clearTimeout(timer.current);
       const batch = pending.current;
-      if (!Object.keys(batch.cards).length && !Object.keys(batch.columns).length) return;
+      if (!Object.keys(batch.cards).length && !Object.keys(batch.columns).length && !batch.focus && batch.hideCompleted === undefined) return;
       pending.current = { cards: {}, columns: {} };
       if (keepalive) {
         // Page is going away: fetch with keepalive survives navigation.
@@ -333,6 +339,8 @@ export function useViewState(boardId: string, detail: BoardDetail | undefined) {
         pending.current = {
           cards: { ...batch.cards, ...pending.current.cards },
           columns: { ...batch.columns, ...pending.current.columns },
+          focus: pending.current.focus ?? batch.focus,
+          hideCompleted: pending.current.hideCompleted ?? batch.hideCompleted,
         };
       });
     },
@@ -360,6 +368,17 @@ export function useViewState(boardId: string, detail: BoardDetail | undefined) {
     [qc, boardId, flush],
   );
 
+  const setBoardLevel = useCallback(
+    (change: { focus?: Focus; hideCompleted?: boolean }) => {
+      qc.setQueryData<BoardDetail>(detailKey(boardId), (d) => (d ? { ...d, view: { ...d.view, ...change } } : d));
+      pending.current = { ...pending.current, ...change };
+      window.clearTimeout(timer.current);
+      // Sooner than card toggles: these change the whole board.
+      timer.current = window.setTimeout(() => flush(), 150);
+    },
+    [qc, boardId, flush],
+  );
+
   return useMemo(() => {
     const view = detail?.view;
     const isExpanded = (cardId: string) => view?.cards[cardId] ?? view?.defaultCardState === "expanded";
@@ -370,6 +389,10 @@ export function useViewState(boardId: string, detail: BoardDetail | undefined) {
       setExpanded: (ids: string[], expanded: boolean) =>
         set("cards", Object.fromEntries(ids.filter((id) => !id.startsWith("tmp-")).map((id) => [id, expanded]))),
       setCollapsed: (id: string, collapsed: boolean) => set("columns", { [id]: collapsed }),
+      focus: view?.focus ?? ({ type: "none" } as Focus),
+      hideCompleted: view?.hideCompleted ?? false,
+      setFocus: (focus: Focus) => setBoardLevel({ focus }),
+      setHideCompleted: (hideCompleted: boolean) => setBoardLevel({ hideCompleted }),
     };
-  }, [detail?.view, set]);
+  }, [detail?.view, set, setBoardLevel]);
 }

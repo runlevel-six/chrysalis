@@ -20,9 +20,9 @@ import {
 } from "@dnd-kit/core";
 import { arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 
-import { api, ApiError, type BoardDetail, type Card, type Column } from "../api";
+import { api, ApiError, type BoardDetail, type Card, type Column, type Focus, type Label } from "../api";
 import { Dialog, Icon, Menu } from "../ui";
-import { ArchivedDialog, BoardSettingsDialog, CardMeta, CoverBand, CoverDialog, DatesDialog, LabelsDialog } from "./details";
+import { ArchivedDialog, BoardSettingsDialog, CardMeta, CoverBand, CoverDialog, DatesDialog, LabelChip, LabelsDialog } from "./details";
 import { Attachments } from "./Attachments";
 import { Checklists } from "./Checklists";
 import { ColumnView } from "./ColumnView";
@@ -68,6 +68,7 @@ export function BoardPage({
   const [labelsCardId, setLabelsCardId] = useState<string | null>(null);
   const [datesCardId, setDatesCardId] = useState<string | null>(null);
   const [coverCardId, setCoverCardId] = useState<string | null>(null);
+  const [filterOpen, setFilterOpen] = useState(false);
   const [capturingIn, setCapturingIn] = useState<string | null>(null);
   const lastColumn = useRef<string | null>(null);
 
@@ -95,18 +96,41 @@ export function BoardPage({
     }),
   );
 
-  // N: quick capture in the column you were last working in (§3.10).
+  // Remember this as the board to come back to (§3.3).
+  useEffect(() => {
+    void api.setView(id, { opened: true }).catch(() => {});
+  }, [id]);
+
+  // Board shortcuts (§3.10): N quick capture, F focus mode, / filter, Esc
+  // leaves focus. Ignored while typing or inside a dialog.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement;
       if (t.closest("input, textarea, select, [contenteditable], dialog")) return;
-      if (e.key.toLowerCase() !== "n" || e.metaKey || e.ctrlKey || e.altKey || readOnly) return;
-      const focusedCol = t.closest<HTMLElement>("[data-column-id]")?.dataset.columnId;
-      const target = focusedCol ?? lastColumn.current ?? columns.find((c) => !view.isCollapsed(c.id))?.id;
-      if (!target) return;
-      e.preventDefault();
-      if (view.isCollapsed(target)) view.setCollapsed(target, false);
-      setCapturingIn(target);
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const here = () =>
+        t.closest<HTMLElement>("[data-column-id]")?.dataset.columnId ?? lastColumn.current ?? columns.find((c) => !view.isCollapsed(c.id))?.id;
+      const key = e.key.toLowerCase();
+      if (key === "n" && !readOnly) {
+        const target = here();
+        if (!target) return;
+        e.preventDefault();
+        if (view.isCollapsed(target)) view.setCollapsed(target, false);
+        setCapturingIn(target);
+      } else if (key === "f") {
+        e.preventDefault();
+        if (view.focus.type !== "none") view.setFocus({ type: "none" });
+        else {
+          const target = here();
+          if (target) view.setFocus({ type: "column", columnId: target });
+        }
+      } else if (e.key === "/") {
+        e.preventDefault();
+        setFilterOpen(true);
+      } else if (e.key === "Escape" && view.focus.type !== "none") {
+        view.setFocus({ type: "none" });
+        setFilterOpen(false);
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -197,6 +221,20 @@ export function BoardPage({
   const moveCard = moveCardId ? cardsById.get(moveCardId) : undefined;
   const optionsColumn = optionsColumnId ? d.columns.find((c) => c.id === optionsColumnId) : undefined;
 
+  // What's on screen (§3.4): hide-completed drops done cards and cards in
+  // done columns; focus mode shows one column, or only matching cards.
+  const focus = view.focus;
+  const doneColumns = new Set(d.columns.filter((c) => c.isDone).map((c) => c.id));
+  const query = focus.type === "filter" ? (focus.query ?? "").trim().toLowerCase() : "";
+  const wantLabels = focus.type === "filter" ? (focus.labelIds ?? []) : [];
+  const visible = (c: Card) =>
+    !(view.hideCompleted && (c.completedAt || doneColumns.has(c.columnId))) &&
+    (!query || c.title.toLowerCase().includes(query)) &&
+    (!wantLabels.length || c.labelIds.some((l) => wantLabels.includes(l)));
+  const shownColumns = focus.type === "column" ? columns.filter((c) => c.id === focus.columnId) : columns;
+  const focusedColumn = focus.type === "column" ? columns.find((c) => c.id === focus.columnId) : undefined;
+  const allCardIds = d.cards.map((c) => c.id);
+
   return (
     <div className="board">
       <div className="board-head">
@@ -204,6 +242,19 @@ export function BoardPage({
         <span className="save-state muted" aria-live="polite">
           {saving ? "Saving…" : "Saved"}
         </span>
+        <Menu
+          label="View"
+          icon={<Icon.Eye />}
+          items={[
+            { label: "Collapse all cards", onSelect: () => view.setExpanded(allCardIds, false) },
+            { label: "Expand all cards", onSelect: () => view.setExpanded(allCardIds, true) },
+            {
+              label: view.hideCompleted ? "Show completed cards" : "Hide completed cards",
+              onSelect: () => view.setHideCompleted(!view.hideCompleted),
+            },
+            { label: "Filter cards…", onSelect: () => setFilterOpen(true) },
+          ]}
+        />
         <Menu
           label="Board"
           icon={<Icon.More />}
@@ -232,6 +283,34 @@ export function BoardPage({
         </nav>
       )}
 
+      {(filterOpen || focus.type === "filter") && (
+        <FilterBar
+          focus={focus}
+          labels={ctx.labels}
+          onChange={(f) => view.setFocus(f)}
+          onClose={() => {
+            setFilterOpen(false);
+            view.setFocus({ type: "none" });
+          }}
+        />
+      )}
+      {(focusedColumn || view.hideCompleted) && (
+        <div className="focus-banner" role="status">
+          {focusedColumn && <span>Focused on {focusedColumn.name}.</span>}
+          {view.hideCompleted && <span>Completed cards are hidden.</span>}
+          {focusedColumn && (
+            <button type="button" className="text-button" onClick={() => view.setFocus({ type: "none" })}>
+              Show all columns
+            </button>
+          )}
+          {view.hideCompleted && (
+            <button type="button" className="text-button" onClick={() => view.setHideCompleted(false)}>
+              Show completed
+            </button>
+          )}
+        </div>
+      )}
+
       <p id="card-shortcuts" hidden>
         Space to expand or collapse, Enter to open, E to edit the title, M to move with the arrow keys.
       </p>
@@ -254,11 +333,11 @@ export function BoardPage({
           const col = (e.target as HTMLElement).closest<HTMLElement>("[data-column-id]")?.dataset.columnId;
           if (col) lastColumn.current = col;
         }}>
-          {columns.map((col) => (
+          {shownColumns.map((col) => (
             <ColumnView
               key={col.id}
               column={col}
-              cards={(items[col.id] ?? []).map((cid) => cardsById.get(cid)).filter((c): c is Card => !!c)}
+              cards={(items[col.id] ?? []).map((cid) => cardsById.get(cid)).filter((c): c is Card => !!c && visible(c))}
               collapsed={view.isCollapsed(col.id)}
               readOnly={readOnly}
               isExpanded={view.isExpanded}
@@ -275,7 +354,7 @@ export function BoardPage({
               setCapturing={(on) => setCapturingIn(on ? col.id : null)}
             />
           ))}
-          {!readOnly && <AddColumn onAdd={(name) => void actions.addColumn(name)} />}
+          {!readOnly && focus.type !== "column" && <AddColumn onAdd={(name) => void actions.addColumn(name)} />}
         </div>
         <DragOverlay>
           {activeCard && <div className="card is-overlay">{activeCard.title}</div>}
@@ -329,6 +408,10 @@ export function BoardPage({
           columns={columns}
           cardCount={(items[optionsColumn.id] ?? []).length}
           actions={actions}
+          onFocus={() => view.setFocus({ type: "column", columnId: optionsColumn.id })}
+          onExpandAll={(expanded) =>
+            view.setExpanded(d.cards.filter((c) => c.columnId === optionsColumn.id).map((c) => c.id), expanded)
+          }
           onClose={() => setOptionsColumnId(null)}
         />
       )}
@@ -507,12 +590,16 @@ function ColumnOptions({
   columns,
   cardCount,
   actions,
+  onFocus,
+  onExpandAll,
   onClose,
 }: {
   column: Column;
   columns: Column[];
   cardCount: number;
   actions: ReturnType<typeof useBoardActions>;
+  onFocus: () => void;
+  onExpandAll: (expanded: boolean) => void;
   onClose: () => void;
 }) {
   const [confirming, setConfirming] = useState(false);
@@ -533,6 +620,36 @@ function ColumnOptions({
   return (
     <Dialog open onClose={onClose} title={`${column.name} options`}>
       <div className="dialog-actions vertical">
+        <button
+          type="button"
+          className="text-button"
+          onClick={() => {
+            onFocus();
+            onClose();
+          }}
+        >
+          Focus on this column
+        </button>
+        <button
+          type="button"
+          className="text-button"
+          onClick={() => {
+            onExpandAll(false);
+            onClose();
+          }}
+        >
+          Collapse all cards here
+        </button>
+        <button
+          type="button"
+          className="text-button"
+          onClick={() => {
+            onExpandAll(true);
+            onClose();
+          }}
+        >
+          Expand all cards here
+        </button>
         <button type="button" className="text-button" disabled={i <= 0} onClick={() => move(-1)}>
           Move left
         </button>
@@ -617,5 +734,58 @@ function TrashDialog({
         ))}
       </ul>
     </Dialog>
+  );
+}
+
+/** Show only cards whose title contains the text, or that carry any of the chosen labels. */
+function FilterBar({
+  focus,
+  labels,
+  onChange,
+  onClose,
+}: {
+  focus: Focus;
+  labels: Label[];
+  onChange: (f: Focus) => void;
+  onClose: () => void;
+}) {
+  const current = focus.type === "filter" ? focus : { type: "filter" as const, query: "", labelIds: [] as string[] };
+  const [text, setText] = useState(current.query ?? "");
+  const chosen = current.labelIds ?? [];
+  const update = (q: string, ls: string[]) =>
+    onChange(q.trim() || ls.length ? { type: "filter", query: q, labelIds: ls } : { type: "none" });
+  return (
+    <div className="filter-bar" role="search">
+      <input
+        autoFocus
+        aria-label="Filter cards"
+        placeholder="Filter cards by title"
+        value={text}
+        maxLength={200}
+        onChange={(e) => {
+          setText(e.target.value);
+          update(e.target.value, chosen);
+        }}
+        onKeyDown={(e) => e.key === "Escape" && onClose()}
+      />
+      {labels.length > 0 && (
+        <div className="filter-labels" role="group" aria-label="Filter by label">
+          {labels.map((l) => (
+            <button
+              key={l.id}
+              type="button"
+              className={`filter-label${chosen.includes(l.id) ? " is-on" : ""}`}
+              aria-pressed={chosen.includes(l.id)}
+              onClick={() => update(text, chosen.includes(l.id) ? chosen.filter((x) => x !== l.id) : [...chosen, l.id])}
+            >
+              <LabelChip label={l} />
+            </button>
+          ))}
+        </div>
+      )}
+      <button type="button" className="text-button" onClick={onClose}>
+        Clear filter
+      </button>
+    </div>
   );
 }
