@@ -90,6 +90,12 @@ export const Icon = {
   ChevronDown: svg(<path d="m6 9 6 6 6-6" />),
   Expand: svg(<path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />),
   Plus: svg(<path d="M12 5v14M5 12h14" />),
+  Copy: svg(
+    <>
+      <rect x="9" y="9" width="11" height="11" rx="2" />
+      <path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1" />
+    </>,
+  ),
   More: svg(
     <>
       <circle cx="5" cy="12" r="1" />

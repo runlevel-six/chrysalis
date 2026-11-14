@@ -22,8 +22,8 @@ gradient. Most cards are one line; one is open, showing its labels, due date and
 
 **In daily use, in a household trial.** Everything in the design's first phase is built and deployed: boards, cards and
 their details, the overwhelm controls, themes, live sync, offline viewing, backups and the Trello import. The second
-phase is under way: the calendar view, reminders (in the app and as notifications on your devices) and custom fields
-are done; sharing boards comes next. What's planned and why is in the [design document](docs/DESIGN.md#4-feature-scope-by-phase).
+phase is under way: the calendar view, reminders (in the app and as notifications on your devices), custom fields,
+and card templates and copies are done; sharing boards comes next. What's planned and why is in the [design document](docs/DESIGN.md#4-feature-scope-by-phase).
 
 Releases are tagged `vX.Y.Z`, and each one publishes a multi-architecture container image to
 `ghcr.io/runlevel-six/chrysalis`.
@@ -48,6 +48,7 @@ Releases are tagged `vX.Y.Z`, and each one publishes a multi-architecture contai
   links, covers, and an archive.
 - Drag and drop, including with the keyboard and on touch screens, plus "Move to…" (also to another board) and move
   up or down.
+- Copy a card with the parts you choose, or save it as a template and start new cards from it.
 - Custom fields per board (text, number, date, a choice, or a checkbox), optionally shown on collapsed cards.
 - Board backgrounds (colors, gradients or your own photo), icons, templates, archive and trash.
 

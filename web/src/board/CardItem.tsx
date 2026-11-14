@@ -38,10 +38,19 @@ export type CardActions = {
   archive: (card: Card) => void;
   trash: (card: Card) => void;
   setField: (card: Card, field: CustomField, value: string | number | boolean | null) => void;
+  copy: (card: Card) => void;
+  saveTemplate: (card: Card) => void;
+  fromTemplate: (template: Card, columnId: string) => void;
 };
 
 /** What the board shares with every card: its labels and display settings. */
-export type CardContext = { labels: Label[]; fields: CustomField[]; settings: BoardSettings; highlightOverdue: boolean };
+export type CardContext = {
+  labels: Label[];
+  fields: CustomField[];
+  templates: Card[];
+  settings: BoardSettings;
+  highlightOverdue: boolean;
+};
 
 export function CardItem({
   card,
@@ -197,6 +206,8 @@ export function CardItem({
                   ...(actions.canMoveBy(card, -1) ? [{ label: "Move up", onSelect: () => actions.moveBy(card, -1) }] : []),
                   ...(actions.canMoveBy(card, 1) ? [{ label: "Move down", onSelect: () => actions.moveBy(card, 1) }] : []),
                   { label: "Move to…", onSelect: () => actions.moveTo(card) },
+                  { label: "Copy…", onSelect: () => actions.copy(card) },
+                  { label: "Save as template…", onSelect: () => actions.saveTemplate(card) },
                   { label: "Archive", onSelect: () => actions.archive(card) },
                   { label: "Delete", onSelect: () => actions.trash(card) },
                 ]}

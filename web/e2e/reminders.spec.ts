@@ -10,8 +10,13 @@ import { expect, test } from "@playwright/test";
 import { addCards, card, expectAccessible, newBoard } from "./helpers";
 
 test.describe.configure({ mode: "serial" });
+// Each test starts and ends with reminders off and no quiet hours.
+const reset = async ({ page }: { page: import("@playwright/test").Page }) => {
+  await page.request.patch("/api/v1/me/prefs", { data: { remindersEnabled: false, quietStart: "", quietEnd: "" } });
+};
+test.beforeEach(reset);
 test.afterEach(async ({ page }) => {
-  await page.request.patch("/api/v1/me/prefs", { data: { remindersEnabled: false } });
+  await reset({ page });
   await page.request.post("/api/v1/me/notifications/dismiss");
 });
 
@@ -97,6 +102,5 @@ test("Settings offers reminders on this device and quiet hours", async ({ page, 
   await expectAccessible(page, "reminder settings");
   await page.reload();
   await expect(page.getByLabel("Until")).toHaveValue("07:00");
-  await page.request.patch("/api/v1/me/prefs", { data: { quietStart: "", quietEnd: "" } });
 });
 });

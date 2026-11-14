@@ -20,11 +20,12 @@ import {
 } from "@dnd-kit/core";
 import { arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 
-import { api, ApiError, LABEL_COLORS, type BoardDetail, type Card, type Column, type Focus, type Label } from "../api";
+import { api, ApiError, COPY_EVERYTHING, LABEL_COLORS, type BoardDetail, type Card, type Column, type Focus, type Label } from "../api";
 import { Dialog, Icon, Menu } from "../ui";
 import { flutterAfterMove, flutterFrom } from "../flutter";
 import { backgroundStyle } from "./backgrounds";
 import { CardFields } from "./Fields";
+import { CopyDialog } from "./CopyDialog";
 import { holdSync } from "../live";
 import { navigate } from "../router";
 import { rememberReturn } from "../BackLink";
@@ -86,6 +87,7 @@ export function BoardPage({
   const [optionsColumnId, setOptionsColumnId] = useState<string | null>(null);
   const [trashOpen, setTrashOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [copying, setCopying] = useState<{ id: string; template: boolean } | null>(null);
   const [archivedOpen, setArchivedOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [labelsCardId, setLabelsCardId] = useState<string | null>(null);
@@ -274,10 +276,18 @@ export function BoardPage({
     },
     trash: (c) => void actions.trashCard(c),
     setField: (c, f, v) => void actions.setCardField(c, f, v),
+    copy: (c) => setCopying({ id: c.id, template: false }),
+    saveTemplate: (c) => setCopying({ id: c.id, template: true }),
+    fromTemplate: (t, columnId) => {
+      void actions
+        .copyCard(t, { columnId, freshChecklists: true, include: COPY_EVERYTHING }, `Added “${t.title}” from its template`)
+        .then((made) => made && view.setExpanded([made.id], true));
+    },
   };
   const ctx: CardContext = {
     labels: [...d.labels].sort(byPosition),
     fields: [...(d.fields ?? [])].sort(byPosition),
+    templates: d.templates ?? [],
     settings: d.board.settings,
     highlightOverdue: me.data?.prefs?.highlightOverdue ?? false,
   };
@@ -358,7 +368,7 @@ export function BoardPage({
   };
 
   const activeCard = activeId ? cardsById.get(activeId) : undefined;
-  const fullCard = fullCardId ? cardsById.get(fullCardId) : undefined;
+  const fullCard = fullCardId ? (cardsById.get(fullCardId) ?? d.templates?.find((t) => t.id === fullCardId)) : undefined;
   const moveCard = moveCardId ? cardsById.get(moveCardId) : undefined;
   const optionsColumn = optionsColumnId ? d.columns.find((c) => c.id === optionsColumnId) : undefined;
   const bgStyle = backgroundStyle(d.board, isDark({ ...DEFAULT_PREFS, ...(me.data?.prefs ?? {}) }));
@@ -560,6 +570,11 @@ export function BoardPage({
           settings={d.board.settings}
           background={d.board.background}
           fields={d.fields ?? []}
+          templates={d.templates ?? []}
+          onOpenTemplate={(tid) => {
+            setSettingsOpen(false);
+            setFullCardId(tid);
+          }}
           labels={ctx.labels}
           actions={actions}
           centeringLine={centeringOn ? { show: view.centeringLine !== false, set: view.setCenteringLine } : undefined}
@@ -594,6 +609,17 @@ export function BoardPage({
       )}
       {trashOpen && <TrashDialog boardId={id} actions={actions} onClose={() => setTrashOpen(false)} />}
       <ShortcutsDialog open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
+      {copying && (cardsById.get(copying.id) ?? d.templates?.find((t) => t.id === copying.id)) && (
+        <CopyDialog
+          card={(cardsById.get(copying.id) ?? d.templates?.find((t) => t.id === copying.id))!}
+          template={copying.template}
+          onCopy={(opts) => {
+            const src = (cardsById.get(copying.id) ?? d.templates?.find((t) => t.id === copying.id))!;
+            void actions.copyCard(src, opts, opts.template ? `Saved “${opts.title}” as a template` : `Copied “${src.title}”`);
+          }}
+          onClose={() => setCopying(null)}
+        />
+      )}
     </div>
   );
 }
@@ -652,6 +678,11 @@ function CardFull({
     <Dialog open onClose={onClose} title={card.title} className="card-full">
       <CoverBand card={card} large />
       <p className="muted">Column: {column?.name ?? "unknown"}</p>
+      {card.isTemplate && (
+        <p className="muted template-note">
+          This is a template. Changes here shape the cards made from it from now on.
+        </p>
+      )}
       <CardMeta card={card} labels={ctx.labels} />
       <CardFields card={card} fields={ctx.fields} readOnly={readOnly} onSet={(f, v) => actions.setField(card, f, v)} />
       <Suspense fallback={<p className="muted description-loading">Loading description…</p>}>
@@ -698,9 +729,19 @@ function CardFull({
               Move down
             </button>
           )}
-          <button type="button" className="text-button" onClick={() => actions.moveTo(card)}>
-            Move to…
+          {!card.isTemplate && (
+            <button type="button" className="text-button" onClick={() => actions.moveTo(card)}>
+              Move to…
+            </button>
+          )}
+          <button type="button" className="text-button" onClick={() => actions.copy(card)}>
+            Copy…
           </button>
+          {!card.isTemplate && (
+            <button type="button" className="text-button" onClick={() => actions.saveTemplate(card)}>
+              Save as template…
+            </button>
+          )}
           <button type="button" className="text-button" onClick={() => actions.archive(card)}>
             Archive
           </button>

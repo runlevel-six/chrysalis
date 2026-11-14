@@ -16,6 +16,7 @@ func (s *server) registerFields(mux *http.ServeMux) {
 	mux.HandleFunc("DELETE /api/v1/fields/{id}", s.trashField(true))
 	mux.HandleFunc("POST /api/v1/fields/{id}/restore", s.trashField(false))
 	mux.HandleFunc("PUT /api/v1/cards/{id}/fields/{fieldId}", s.setCardField)
+	mux.HandleFunc("POST /api/v1/cards/{id}/copy", s.copyCard)
 }
 
 func (s *server) createField(w http.ResponseWriter, r *http.Request) {

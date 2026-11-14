@@ -53,11 +53,13 @@ type Card struct {
 	Position string   `json:"position"`
 	LabelIDs []string `json:"labelIds"`
 	// Fields holds the card's custom field values, by field id.
-	Fields     map[string]json.RawMessage `json:"fields"`
-	Cover      Cover                      `json:"cover"`
-	StartAt    *string                    `json:"startAt"` // "YYYY-MM-DD"
-	DueAt      *string                    `json:"dueAt"`   // "YYYY-MM-DD", or a UTC timestamp when DueHasTime
-	DueHasTime bool                       `json:"dueHasTime"`
+	Fields map[string]json.RawMessage `json:"fields"`
+	// IsTemplate marks a card template, kept out of the columns.
+	IsTemplate bool    `json:"isTemplate,omitempty"`
+	Cover      Cover   `json:"cover"`
+	StartAt    *string `json:"startAt"` // "YYYY-MM-DD"
+	DueAt      *string `json:"dueAt"`   // "YYYY-MM-DD", or a UTC timestamp when DueHasTime
+	DueHasTime bool    `json:"dueHasTime"`
 	// Checklist progress across all of the card's checklists. Only filled in
 	// on the board detail, for "2/5" on collapsed cards.
 	ChecklistDone  int64 `json:"checklistDone"`
@@ -111,7 +113,9 @@ type BoardDetail struct {
 	Cards   []Card        `json:"cards"`
 	Labels  []Label       `json:"labels"`
 	Fields  []CustomField `json:"fields"`
-	View    BoardView     `json:"view"`
+	// Templates are the board's card templates (not in any column).
+	Templates []Card    `json:"templates"`
+	View      BoardView `json:"view"`
 }
 
 type Trash struct {
@@ -141,7 +145,7 @@ func columnFromRow(c db.Column) Column {
 func cardFromRow(c db.Card) Card {
 	return Card{
 		ID: c.ID, BoardID: c.BoardID, ColumnID: c.ColumnID, Title: c.Title, Position: c.Position,
-		LabelIDs: []string{}, Fields: map[string]json.RawMessage{}, Cover: Cover{Type: c.CoverType, Value: c.CoverValue}, StartAt: nullStr(c.StartAt), DueAt: nullStr(c.DueAt), DueHasTime: c.DueHasTime != 0,
+		LabelIDs: []string{}, Fields: map[string]json.RawMessage{}, IsTemplate: c.IsTemplate != 0, Cover: Cover{Type: c.CoverType, Value: c.CoverValue}, StartAt: nullStr(c.StartAt), DueAt: nullStr(c.DueAt), DueHasTime: c.DueHasTime != 0,
 		CompletedAt: nullStr(c.CompletedAt), ArchivedAt: nullStr(c.ArchivedAt), DeletedAt: nullStr(c.DeletedAt),
 		Version: c.Version, CreatedAt: c.CreatedAt, UpdatedAt: c.UpdatedAt,
 	}
@@ -342,6 +346,9 @@ func (s *Boards) Detail(ctx context.Context, userID, boardID string) (BoardDetai
 		fieldsByCard[v.CardID][v.FieldID] = json.RawMessage(v.ValueJson)
 	}
 	if out.Fields, err = listFields(ctx, s.st.Queries, boardID); err != nil {
+		return out, err
+	}
+	if out.Templates, err = s.templates(ctx, s.st.Queries, boardID); err != nil {
 		return out, err
 	}
 	out.Cards = make([]Card, 0, len(cards))

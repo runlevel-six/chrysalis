@@ -6,7 +6,7 @@ import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 
 import type { Card, Column } from "../api";
-import { Icon } from "../ui";
+import { Icon, Menu } from "../ui";
 import { CardItem, TitleEditor, type CardActions, type CardContext } from "./CardItem";
 import { columnTint } from "./backgrounds";
 
@@ -110,9 +110,19 @@ export function ColumnView({
         (capturing ? (
           <QuickCapture onAdd={onAddCard} onClose={() => setCapturing(false)} />
         ) : (
-          <button type="button" className="add-card" onClick={() => setCapturing(true)}>
-            <Icon.Plus /> Add a card
-          </button>
+          <div className="add-card-row">
+            <button type="button" className="add-card" onClick={() => setCapturing(true)}>
+              <Icon.Plus /> Add a card
+            </button>
+            {ctx.templates.length > 0 && (
+              <Menu
+                label={`Add a card to ${column.name} from a template`}
+                icon={<Icon.Copy />}
+                iconOnly
+                items={ctx.templates.map((t) => ({ label: t.title, onSelect: () => cardActions.fromTemplate(t, column.id) }))}
+              />
+            )}
+          </div>
         ))}
     </section>
   );

@@ -6,7 +6,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import { devices, expect, test } from "@playwright/test";
 
-import { addCards, card, cardTitles, column, newBoard, viewSaved } from "./helpers";
+import { addCards, card, cardTitles, column, expectAccessible, newBoard, viewSaved } from "./helpers";
 
 test("create columns and cards with quick capture", async ({ page }) => {
   await newBoard(page, ["To do", "Doing", "Done"]);
@@ -233,4 +233,51 @@ test("move a card up and down from its menu and with Alt+arrow keys", async ({ p
   await page.keyboard.press("Alt+ArrowDown");
   await expect.poll(() => cardTitles(page, "List")).toEqual(["Third", "First", "Second"]);
   await expect(card(page, "First")).toBeFocused();
+});
+
+test("copy a card, save it as a template, and start a card from the template", async ({ page }) => {
+  await newBoard(page, ["To do", "Done"]);
+  await addCards(page, "To do", ["Weekly shop", "Something else"]);
+  const c = card(page, "Weekly shop");
+  await c.getByRole("button", { name: "Expand card" }).click();
+  await c.getByRole("button", { name: "Add a checklist" }).click();
+  const input = c.getByLabel("New checklist item");
+  for (const t of ["Milk", "Bread"]) {
+    await input.fill(t);
+    await input.press("Enter");
+  }
+  await input.press("Escape");
+  await c.getByRole("checkbox", { name: "Milk" }).check();
+
+  // Copy: lands just after the original, with its checklist as it was.
+  await c.getByRole("button", { name: "More" }).click();
+  await page.getByRole("menuitem", { name: "Copy…" }).click();
+  let dialog = page.getByRole("dialog", { name: "Copy card" });
+  await dialog.getByLabel("Title").fill("Weekly shop (next week)");
+  await dialog.getByRole("button", { name: "Copy", exact: true }).click();
+  await expect.poll(() => cardTitles(page, "To do")).toEqual(["Weekly shop", "Weekly shop (next week)", "Something else"]);
+  const copy = card(page, "Weekly shop (next week)");
+  await copy.getByRole("button", { name: "Expand card" }).click();
+  await expect(copy.getByRole("checkbox", { name: "Milk" })).toBeChecked();
+
+  // Save as a template: not in the columns, listed in Board settings.
+  await c.getByRole("button", { name: "More" }).click();
+  await page.getByRole("menuitem", { name: "Save as template…" }).click();
+  dialog = page.getByRole("dialog", { name: "Save as a template" });
+  await dialog.getByLabel("Template name").fill("Shopping list");
+  await dialog.getByRole("button", { name: "Save template" }).click();
+  await expect(card(page, "Shopping list")).toHaveCount(0); // not a card in a column
+  await expectAccessible(page, "board with a template");
+
+  // Start a card from it in Done: at the bottom, items unticked.
+  await page.getByRole("button", { name: "Add a card to Done from a template" }).click();
+  await page.getByRole("menuitem", { name: "Shopping list" }).click();
+  const made = card(page, "Shopping list");
+  await expect(made).toBeVisible();
+  await expect(made.getByRole("checkbox", { name: "Milk" })).not.toBeChecked();
+  expect(await cardTitles(page, "Done")).toEqual(["Shopping list"]);
+
+  await page.reload();
+  expect(await cardTitles(page, "To do")).toEqual(["Weekly shop", "Weekly shop (next week)", "Something else"]);
+  await expect(card(page, "Shopping list")).toBeVisible();
 });

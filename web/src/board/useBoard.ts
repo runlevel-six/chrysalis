@@ -17,6 +17,7 @@ import {
   type Board,
   type BoardDetail,
   type BoardSettings,
+  type CopyOptions,
   type CustomField,
   type FieldOption,
   type FieldPatch,
@@ -320,6 +321,40 @@ export function useBoardActions(boardId: string) {
     }
   };
 
+  // Copies and templates
+
+  /** Copy a card (or save it as a template, or start one from a template). */
+  const copyCard = async (card: Card, opts: CopyOptions, label: string) => {
+    try {
+      const made = await api.copyCard(card.id, opts);
+      if (made.isTemplate) patch((d) => ({ ...d, templates: [...(d.templates ?? []).filter((x) => x.id !== made.id), made] }));
+      else putCard(made);
+      void qc.invalidateQueries({ queryKey: key }); // checklist counts and the rest
+      push(label, async () => {
+        await api.trashCard(made.id);
+        await qc.invalidateQueries({ queryKey: key });
+      });
+      return made;
+    } catch (err) {
+      fail(err);
+      return undefined;
+    }
+  };
+
+  const trashTemplate = async (tpl: Card) => {
+    const done = await send(
+      () => patch((d) => ({ ...d, templates: (d.templates ?? []).filter((x) => x.id !== tpl.id) })),
+      () => api.trashCard(tpl.id),
+      () => {},
+    );
+    if (done) {
+      push(`Deleted the template “${tpl.title}”`, async () => {
+        await api.restoreCard(tpl.id);
+        await qc.invalidateQueries({ queryKey: key });
+      });
+    }
+  };
+
   // Board
 
   const updateBoard = async (p: { name?: string; icon?: string; settings?: BoardSettings; background?: Board["background"] }, label?: string) => {
@@ -352,6 +387,7 @@ export function useBoardActions(boardId: string) {
     addColumn, updateColumn, trashColumn, restoreColumn,
     createLabel, updateLabel, trashLabel, updateBoard,
     createField, updateField, trashField, setCardField,
+    copyCard, trashTemplate,
   };
 }
 

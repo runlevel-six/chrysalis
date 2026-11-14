@@ -2523,3 +2523,25 @@ kbd {
   flex: 1;
   min-width: 0;
 }
+
+/* ---------- Copies and templates ---------- */
+
+.add-card-row {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.add-card-row .add-card {
+  flex: 1;
+}
+
+.copy-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.template-note {
+  margin: 0 0 0.5rem;
+}

@@ -289,6 +289,8 @@ export function BoardSettingsDialog({
   background,
   labels,
   fields,
+  templates,
+  onOpenTemplate,
   actions,
   centeringLine,
   onClose,
@@ -301,6 +303,8 @@ export function BoardSettingsDialog({
   background: Board["background"];
   labels: Label[];
   fields: CustomField[];
+  templates: Card[];
+  onOpenTemplate: (id: string) => void;
   actions: Actions;
   /** The per-person centering-line override, when the line is turned on. */
   centeringLine?: { show: boolean; set: (show: boolean) => void };
@@ -402,6 +406,36 @@ export function BoardSettingsDialog({
       )}
 
       <FieldsSettings fields={fields} actions={actions} />
+
+      <fieldset className="settings-group">
+        <legend>Card templates</legend>
+        {templates.length === 0 ? (
+          <p className="muted">
+            None yet. To make one, choose <strong>Save as template…</strong> in a card's menu.
+          </p>
+        ) : (
+          <ul className="field-list">
+            {templates.map((t) => (
+              <li key={t.id} className="field-row">
+                <span className="field-name">{t.title}</span>
+                <span className="row">
+                  <button type="button" className="text-button" aria-label={`Open the template ${t.title}`} onClick={() => onOpenTemplate(t.id)}>
+                    Open
+                  </button>
+                  <button
+                    type="button"
+                    className="text-button"
+                    aria-label={`Delete the template ${t.title}`}
+                    onClick={() => void actions.trashTemplate(t)}
+                  >
+                    Delete
+                  </button>
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </fieldset>
 
       <IconPicker icon={icon} actions={actions} />
 

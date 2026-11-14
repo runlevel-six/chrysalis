@@ -88,6 +88,7 @@ export type Card = {
   labelIds: string[];
   /** Custom field values by field id: string, number, true, or a choice id. */
   fields: Record<string, string | number | boolean>;
+  isTemplate?: boolean;
   cover: Cover;
   startAt: string | null; // "YYYY-MM-DD"
   dueAt: string | null; // "YYYY-MM-DD", or a UTC timestamp when dueHasTime
@@ -188,7 +189,21 @@ export type Checklist = { id: string; cardId: string; title: string; position: s
 /** ProseMirror JSON, or null when empty. */
 export type Description = { doc: unknown; version: number; updatedAt?: string };
 
-export type BoardDetail = { board: Board; columns: Column[]; cards: Card[]; labels: Label[]; fields: CustomField[]; view: BoardView };
+export type BoardDetail = {
+  board: Board;
+  columns: Column[];
+  cards: Card[];
+  labels: Label[];
+  fields: CustomField[];
+  /** Card templates: kept out of the columns. */
+  templates: Card[];
+  view: BoardView;
+};
+
+/** What a copy of a card brings along (§4, Phase 2). */
+export type CopyInclude = { checklists: boolean; labels: boolean; description: boolean; dates: boolean; fields: boolean; attachments: boolean };
+export const COPY_EVERYTHING: CopyInclude = { checklists: true, labels: true, description: true, dates: true, fields: true, attachments: true };
+export type CopyOptions = { title?: string; columnId?: string; template?: boolean; freshChecklists?: boolean; include: CopyInclude };
 
 /** A custom field on a board (§4, Phase 2). */
 export type FieldType = "text" | "number" | "date" | "select" | "checkbox";
@@ -332,6 +347,7 @@ export type Notification = {
 };
 
 export const api = {
+  copyCard: (id: string, opts: CopyOptions) => request<Card>("POST", `/cards/${encodeURIComponent(id)}/copy`, opts),
   createField: (boardId: string, name: string, type: FieldType, options: FieldOption[] = []) =>
     request<CustomField>("POST", `/boards/${encodeURIComponent(boardId)}/fields`, { name, type, options }),
   updateField: (id: string, patch: FieldPatch) => request<CustomField>("PATCH", `/fields/${encodeURIComponent(id)}`, patch),

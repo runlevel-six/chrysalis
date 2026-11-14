@@ -65,6 +65,7 @@ type Card struct {
 	DueHasTime  int64
 	CoverType   string
 	CoverValue  string
+	IsTemplate  int64
 }
 
 type CardDescription struct {

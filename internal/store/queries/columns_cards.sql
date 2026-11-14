@@ -21,6 +21,7 @@ SELECT cards.* FROM cards
 JOIN columns ON columns.id = cards.column_id
 WHERE cards.board_id = ?
   AND cards.deleted_at IS NULL
+  AND cards.is_template = 0
   AND cards.archived_at IS NULL
   AND columns.deleted_at IS NULL
 ORDER BY cards.column_id, cards.position, cards.id;
@@ -120,3 +121,16 @@ SELECT user_column_view.column_id, user_column_view.collapsed
 FROM user_column_view
 JOIN columns ON columns.id = user_column_view.column_id
 WHERE user_column_view.user_id = ? AND columns.board_id = ?;
+
+-- name: ListTemplates :many
+SELECT * FROM cards WHERE board_id = ? AND is_template = 1 AND deleted_at IS NULL ORDER BY title, id;
+
+-- name: CopyCardRow :exec
+INSERT INTO cards (id, board_id, column_id, title, position, start_at, due_at, due_has_time,
+                   cover_type, cover_value, is_template, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+-- name: ListColumnCardPositions :many
+SELECT id, position FROM cards
+WHERE column_id = ? AND deleted_at IS NULL AND archived_at IS NULL AND is_template = 0
+ORDER BY position, id;
